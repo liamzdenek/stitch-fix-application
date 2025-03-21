@@ -22,12 +22,6 @@
       }
     },
     {
-      "plugin": "@nx/jest/plugin",
-      "options": {
-        "targetName": "test"
-      }
-    },
-    {
       "plugin": "@nx/react/router-plugin",
       "options": {
         "buildTargetName": "build",

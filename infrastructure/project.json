@@ -12,7 +12,91 @@
         "outputPath": "dist/infrastructure",
         "main": "infrastructure/src/index.ts",
         "tsConfig": "infrastructure/tsconfig.lib.json",
-        "assets": ["infrastructure/*.md"]
+        "assets": [
+          "infrastructure/*.md",
+          {
+            "glob": "cdk.json",
+            "input": "infrastructure",
+            "output": "."
+          }
+        ]
+      }
+    },
+    "build-cdk-app": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "commands": [
+          "tsc -p infrastructure/tsconfig.lib.json --outDir dist/infrastructure"
+        ],
+        "parallel": false
+      }
+    },
+    "build-shared": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "npx nx build shared"
+        ],
+        "parallel": false
+      }
+    },
+    "build-stream-processor": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-shared"],
+      "options": {
+        "commands": [
+          "npx nx build stream-processor"
+        ],
+        "parallel": false
+      }
+    },
+    "build-backend": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-shared"],
+      "options": {
+        "commands": [
+          "npx nx build backend"
+        ],
+        "parallel": false
+      }
+    },
+    "build-frontend": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-shared"],
+      "options": {
+        "commands": [
+          "npx nx build frontend"
+        ],
+        "parallel": false
+      }
+    },
+    "build-email-processor": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "npx nx build email-processor-go"
+        ],
+        "parallel": false
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build",
+        "build-shared",
+        "build-stream-processor",
+        "build-backend",
+        "build-frontend",
+        "build-email-processor",
+        "build-cdk-app"
+      ],
+      "options": {
+        "commands": [
+          "cd dist/infrastructure && npx cdk deploy --profile lz-demos --require-approval never --app 'node src/bin/cdk-app.js' --no-color"
+        ],
+        "parallel": false,
+        "maxBuffer": 10000000
       }
     }
   }

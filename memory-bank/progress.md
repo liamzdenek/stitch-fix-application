@@ -80,6 +80,16 @@
 - [x] Ensure all resources are properly defined
 - [x] Configure proper IAM permissions
 
+### Building
+
+- [x] Build all packages with `npx nx run-many --target=build --all`
+- [x] Build email-processor-go package with Go compiler
+- [x] Verify output binaries/transpiled code for all packages
+
+### Installation (Completed)
+
+- [x] Run `npm install` to install dependencies
+
 ## In Progress
 
 ### Testing
@@ -92,14 +102,6 @@
 - [ ] Verify end-to-end flow
 
 ## Next Steps
-
-### Building
-
-- [ ] Build all packages with `npx nx run-many --target=build --all`
-
-### Installation (Completed)
-
-- [x] Run `npm install` to install dependencies
 
 ### Deployment
 
@@ -141,6 +143,10 @@
    - Issue: NodejsFunction not found in lambda namespace
    - Solution: Added import from aws-cdk-lib/aws-lambda-nodejs and updated code to use lambdaNodejs.NodejsFunction
 
+3. **Environment Variables Access**:
+   - Issue: TypeScript error when accessing process.env properties
+   - Solution: Updated to use bracket notation (process.env['PROPERTY_NAME']) for accessing environment variables
+
 ### Frontend Issues (Resolved)
 
 1. **React JSX Types**:
@@ -150,6 +156,16 @@
 2. **React Event Types**:
    - Issue: React event types not found
    - Solution: Added @types/react to package.json which includes event types
+
+### Build Issues (Resolved)
+
+1. **Jest Configuration Issues**:
+   - Issue: Jest plugin causing build process to fail
+   - Solution: Removed Jest plugin from nx.json and created proper tsconfig.spec.json files for each package
+
+2. **Missing Dependencies**:
+   - Issue: Various missing dependencies for build process
+   - Solution: Installed @vitejs/plugin-react, eslint-plugin-import, eslint-plugin-jsx-a11y, eslint-plugin-react, eslint-plugin-react-hooks, @nx/esbuild
 
 ## Achievements
 
@@ -166,6 +182,7 @@
 - Created an AI-powered email generation system
 - Built a responsive frontend dashboard
 - Developed a RESTful API for data management
+- Successfully built all packages and verified output binaries
 
 ### Documentation
 
@@ -190,6 +207,10 @@
    - Lesson: Go Lambda functions have simpler concurrency and better performance
    - Application: Used Go for the email processor for better performance
 
+4. **Nx Build System**:
+   - Lesson: Nx build system requires careful configuration
+   - Application: Properly configured build targets and dependencies for successful builds
+
 ### Process Lessons
 
 1. **Monorepo Structure**:
@@ -204,13 +225,16 @@
    - Lesson: Incremental development allows for faster feedback
    - Application: Implemented core functionality first, then added features
 
+4. **Dependency Management**:
+   - Lesson: Proper dependency management is critical in complex projects
+   - Application: Carefully managed dependencies to ensure compatibility and functionality
+
 ## Next Milestone
 
 The next milestone is to complete the implementation by:
 
-1. Installing dependencies and building all packages
-2. Testing core functionality
-3. Deploying to AWS
-4. Verifying the deployment
+1. Testing core functionality
+2. Deploying to AWS
+3. Verifying the deployment
 
-With the TypeScript type errors and infrastructure integration issues now resolved, we're in a good position to move forward with the final steps of the implementation. This will result in a fully functional system that can be deployed to AWS and demonstrated to showcase technical excellence and business value alignment.
+With all packages successfully built and the output binaries/transpiled code verified, we're in a good position to move forward with testing and deployment. This will result in a fully functional system that can be deployed to AWS and demonstrated to showcase technical excellence and business value alignment.

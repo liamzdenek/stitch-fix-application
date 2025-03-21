@@ -13,6 +13,23 @@ import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as process from 'process';
+
+// Find the git root directory
+function findGitRoot(): string {
+  let currentDir = process.cwd();
+  while (!fs.existsSync(path.join(currentDir, '.git'))) {
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      throw new Error('Could not find git root directory');
+    }
+    currentDir = parentDir;
+  }
+  return currentDir;
+}
+
+const GIT_ROOT = findGitRoot();
 
 export class StitchFixClientEngagementStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -54,9 +71,9 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
     eventsTopic.addSubscription(new subscriptions.SqsSubscription(emailQueue));
 
     // Stream Processor Lambda
-    const streamProcessorLambda = new lambdaNodejs.NodejsFunction(this, 'StreamProcessorLambda', {
-      entry: path.join(__dirname, '../../../../packages/stream-processor/src/main.ts'),
-      handler: 'handler',
+    const streamProcessorLambda = new lambda.Function(this, 'StreamProcessorLambda', {
+      code: lambda.Code.fromAsset(path.join(GIT_ROOT, 'dist/packages/stream-processor')),
+      handler: 'main.handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
@@ -80,15 +97,15 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
 
     // Email Processor Lambda (Go)
     const emailProcessorLambda = new lambda.Function(this, 'EmailProcessorLambda', {
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../../../packages/email-processor-go')),
-      handler: 'main',
-      runtime: lambda.Runtime.GO_1_X,
+      code: lambda.Code.fromAsset(path.join(GIT_ROOT, 'packages/email-processor-go/dist')),
+      handler: 'email-processor',
+      runtime: lambda.Runtime.PROVIDED_AL2023,
       timeout: cdk.Duration.seconds(60),
       memorySize: 256,
       environment: {
         USERS_TABLE_NAME: usersTable.tableName,
         EMAILS_TABLE_NAME: emailsTable.tableName,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key', // Should be set in deployment
+        ['OPENAI_API_KEY']: process.env['OPENAI_API_KEY'] || 'dummy-key', // Should be set in deployment
       },
     });
 
@@ -107,9 +124,9 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
     }));
 
     // Backend API Lambda
-    const backendLambda = new lambdaNodejs.NodejsFunction(this, 'BackendLambda', {
-      entry: path.join(__dirname, '../../../../packages/backend/src/main.ts'),
-      handler: 'handler',
+    const backendLambda = new lambda.Function(this, 'BackendLambda', {
+      code: lambda.Code.fromAsset(path.join(GIT_ROOT, 'dist/packages/backend')),
+      handler: 'main.handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
@@ -154,7 +171,7 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
 
     // Deploy frontend assets
     new s3deploy.BucketDeployment(this, 'DeployFrontend', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '../../../../packages/frontend/dist'))],
+      sources: [s3deploy.Source.asset(path.join(GIT_ROOT, 'dist/packages/frontend'))],
       destinationBucket: frontendBucket,
       distribution,
       distributionPaths: ['/*'],

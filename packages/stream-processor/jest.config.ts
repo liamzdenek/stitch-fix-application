@@ -1,3 +1,4 @@
+/* eslint-disable */
 export default {
   displayName: 'stream-processor',
   preset: '../../jest.preset.js',
