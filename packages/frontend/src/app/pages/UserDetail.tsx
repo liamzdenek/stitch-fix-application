@@ -291,7 +291,7 @@ export const UserDetail: React.FC = () => {
               {userEmails.length === 0 ? (
                 <div className={styles.noEmails}>
                   <p>No emails have been generated for this user yet.</p>
-                  <p>Create an order or set a low engagement score to trigger email generation.</p>
+                  <p>Set a low engagement score to trigger email generation.</p>
                 </div>
               ) : (
                 <div className={styles.emailsList}>
