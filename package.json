@@ -44,6 +44,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "aws-cdk-lib": "^2.126.0",
     "constructs": "^10.3.0",
+    "esbuild": "^0.25.1",
     "eslint": "^8.56.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",

@@ -6,24 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/esbuild:esbuild",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
       "defaultConfiguration": "production",
       "options": {
-        "platform": "node",
-        "outputPath": "dist/packages/backend",
-        "format": ["cjs"],
-        "bundle": false,
-        "main": "packages/backend/src/main.ts",
-        "tsConfig": "packages/backend/tsconfig.app.json",
-        "assets": ["packages/backend/src/assets"],
-        "generatePackageJson": true,
-        "esbuildOptions": {
-          "sourcemap": true,
-          "outExtension": {
-            ".js": ".js"
-          }
-        }
+        "commands": [
+          "node packages/backend/build.js"
+        ],
+        "parallel": false
       },
       "configurations": {
         "development": {},
