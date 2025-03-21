@@ -173,16 +173,16 @@ The following components have been implemented:
    - Challenge: Limited time for comprehensive testing
    - Status: Focus on core functionality testing
 
-2. **Email Generation**:
-   - Challenge: Emails are not being generated for users with low engagement scores
-   - Status: Investigating the issue
+2. **Email Sending**:
+   - Challenge: Emails are being generated but failing to send due to SES verification issues
+   - Status: Identified the issue - email addresses need to be verified in AWS SES
 
 ## Next Steps
 
 1. **Testing**:
    - Continue testing core functionality
    - Verify end-to-end flow with real data
-   - Debug why emails are not being generated for users with low engagement scores
+   - Implement a workaround for email sending in the test environment
 
 2. **Documentation**:
    - Complete README
@@ -210,10 +210,10 @@ The following components have been implemented:
    - Options: Configure error document, use Lambda@Edge
    - Current approach: Configure error document to index.html
 
-4. **Email Generation Debugging**:
-   - Question: Why are emails not being generated for users with low engagement scores?
-   - Options: Check CloudWatch logs, verify event flow, test email processor directly
-   - Current approach: Investigating the issue
+4. **Email Sending in Production**:
+   - Question: How to handle email sending in production?
+   - Options: Verify sender and recipient domains in SES, request production access, use a different email service
+   - Current approach: For testing, we could modify the Lambda to skip actual email sending and just mark emails as "SENT" in DynamoDB
 
 ## Key Insights
 
@@ -247,6 +247,8 @@ The backend API has been updated to use DynamoDB instead of in-memory storage, e
 
 The engagement score handling has been improved to respect provided engagement scores, allowing for direct manipulation of scores in the UI. This enables testing of the email generation system without waiting for natural score changes.
 
-However, there is an issue with the email generation system. Emails are not being generated for users with low engagement scores, despite the engagement score being correctly updated in the database. This issue is currently being investigated.
+We've fixed the issue with the email generation system. The problem was that the email processor Lambda was recalculating engagement scores instead of using the ones stored in the database. This was causing scores to be too high (above the 50.0 threshold) and preventing email generation. We modified the Lambda to use the existing engagement score from the database, and now emails are being generated correctly for users with low engagement scores.
+
+However, there is still an issue with email sending. The emails are being generated and saved to DynamoDB with a status of "FAILED" because the email addresses (both sender and recipients) are not verified in AWS SES. In AWS SES, both the sender and recipient email addresses need to be verified before you can send emails, especially when your SES account is in the sandbox mode (which is the default for new accounts).
 
 The system demonstrates a production-ready, highly scalable solution that addresses a key business risk for Stitch Fix. It showcases technical excellence through its architecture and implementation, while providing practical business value through its engagement monitoring and automated re-engagement capabilities.

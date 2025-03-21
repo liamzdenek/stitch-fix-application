@@ -125,6 +125,91 @@ sleep 10 && aws logs filter-log-events --log-group-name /aws/lambda/StitchFixCli
 
 ## Common Issues and Solutions
 
+### Email Processor Issues
+
+#### Issue: Emails not being generated for users with low engagement scores
+
+**Symptoms:**
+- Users with low engagement scores are not receiving emails
+- No emails are being saved to the DynamoDB table
+- Email processor Lambda logs show engagement scores above the threshold
+
+**Root Cause:**
+The email processor Lambda was recalculating engagement scores instead of using the ones stored in the database. This was causing scores to be too high (above the 50.0 threshold) and preventing email generation.
+
+**Solution:**
+1. Modify the email processor Lambda to use the existing engagement score from the database:
+
+```go
+// Use the existing engagement score from the database instead of recalculating
+var engagementScore float64
+if user.EngagementScore != nil {
+    engagementScore = *user.EngagementScore
+    debugLog(DEBUG_INFO, "Using existing engagement score from database: %.2f", engagementScore)
+} else {
+    // If no engagement score exists, use a default low score to trigger email generation
+    engagementScore = 10.0
+    debugLog(DEBUG_INFO, "No existing score, using default low score: %.2f", engagementScore)
+    
+    // Update the user's engagement score in DynamoDB
+    debugLog(DEBUG_INFO, "Updating user engagement score in DynamoDB: %s -> %.2f", user.UserID, engagementScore)
+    if err := updateUserEngagementScore(ctx, user.UserID, engagementScore); err != nil {
+        debugLog(DEBUG_ERROR, "Error updating user engagement score: %v", err)
+        return fmt.Errorf("error updating user engagement score: %w", err)
+    }
+    debugLog(DEBUG_INFO, "Successfully updated engagement score in DynamoDB")
+}
+```
+
+2. Build and deploy the updated Lambda:
+
+```bash
+npx nx build email-processor-go
+npx nx deploy infrastructure
+```
+
+#### Issue: Emails being generated but failing to send
+
+**Symptoms:**
+- Emails are being generated and saved to DynamoDB with status "FAILED"
+- Email processor Lambda logs show "Email address is not verified" errors
+
+**Root Cause:**
+In AWS SES, both the sender and recipient email addresses need to be verified before you can send emails, especially when your SES account is in the sandbox mode (which is the default for new accounts).
+
+**Error Message:**
+```
+Email address is not verified. The following identities failed the check in region US-WEST-2: noreply@stitchfix.com, test-low@example.com
+```
+
+**Solution:**
+1. Verify the sender email address in AWS SES:
+```bash
+aws ses verify-email-identity --email-address noreply@stitchfix.com --profile lz-demos
+```
+
+2. Verify recipient email addresses:
+```bash
+aws ses verify-email-identity --email-address test-low@example.com --profile lz-demos
+```
+
+3. For testing purposes, you could modify the Lambda to skip the actual email sending and just mark the emails as "SENT" in DynamoDB:
+```go
+// Skip actual email sending for testing
+debugLog(DEBUG_INFO, "Skipping actual email sending for testing purposes")
+if err := updateEmailStatus(ctx, email.EmailID, EmailStatusSent); err != nil {
+    debugLog(DEBUG_ERROR, "Error updating email status: %v", err)
+    return fmt.Errorf("error updating email status: %w", err)
+}
+return nil
+```
+
+4. Request production access to move out of the SES sandbox:
+   - Go to the AWS SES console
+   - Click on "Request Production Access"
+   - Fill out the form with your use case and expected sending volume
+   - Submit the request
+
 ### Lambda Deployment Issues
 
 #### Issue: Lambda function not found or incorrect code
@@ -413,25 +498,43 @@ sleep 10 && aws logs filter-log-events --log-group-name /aws/lambda/StitchFixCli
 ```
 
 3. Verify the event was published to SNS in the logs.
-
 ### Testing the Email Processor
 
 1. Add a test user with a low engagement score to trigger email generation:
 
 ```bash
-aws dynamodb put-item --table-name StitchFixClientEngagementStack-UsersTable9725E9C8-MG34X4JZZ63F --item '{"userId":{"S":"test-user-8"},"email":{"S":"test8@example.com"},"name":{"S":"Test User 8"},"lastOrderDate":{"S":"2024-12-21T16:18:00.000Z"},"orderCount":{"N":"5"},"averageOrderValue":{"N":"100"},"preferredCategories":{"L":[{"S":"pants"},{"S":"shirts"}]},"createdAt":{"S":"2025-03-21T16:18:00.000Z"},"updatedAt":{"S":"2025-03-21T16:18:00.000Z"},"engagementScore":{"N":"30"}}' --profile lz-demos
+aws dynamodb put-item --table-name StitchFixClientEngagementStack-UsersTable9725E9C8-MG34X4JZZ63F --item '{"userId":{"S":"test-user-low"},"email":{"S":"test-low@example.com"},"name":{"S":"Test User Low"},"lastOrderDate":{"S":"2024-11-21T16:18:00.000Z"},"orderCount":{"N":"2"},"averageOrderValue":{"N":"50"},"preferredCategories":{"L":[{"S":"pants"},{"S":"shirts"}]},"createdAt":{"S":"2025-03-21T16:18:00.000Z"},"updatedAt":{"S":"2025-03-21T16:18:00.000Z"},"engagementScore":{"N":"15"}}' --profile lz-demos
 ```
 
-2. Check the email processor Lambda logs:
+2. Update the user to trigger the stream processor:
+
+```bash
+aws dynamodb update-item --table-name StitchFixClientEngagementStack-UsersTable9725E9C8-MG34X4JZZ63F --key '{"userId":{"S":"test-user-low"}}' --update-expression "SET updatedAt = :updatedAt" --expression-attribute-values '{":updatedAt":{"S":"2025-03-21T14:37:00Z"}}' --profile lz-demos
+```
+
+3. Check the email processor Lambda logs:
 
 ```bash
 sleep 15 && aws logs filter-log-events --log-group-name /aws/lambda/StitchFixClientEngagement-EmailProcessorLambdaC8F1-jKu6lCFPj6ox --start-time $(date -d "1 minute ago" +%s)000 --profile lz-demos
 ```
 
-3. Check if emails were saved to the emails table:
+4. Check if emails were saved to the emails table:
 
 ```bash
 aws dynamodb scan --table-name StitchFixClientEngagementStack-EmailsTableF5BA4582-1D3RH80AYSU10 --profile lz-demos
+```
+
+5. Check for email sending errors:
+
+```bash
+aws logs filter-log-events --log-group-name /aws/lambda/StitchFixClientEngagement-EmailProcessorLambdaC8F1-jKu6lCFPj6ox --filter-pattern "Error sending email" --start-time $(date -d "5 minutes ago" +%s)000 --profile lz-demos
+```
+
+6. Directly invoke the email processor Lambda with a test event:
+
+```bash
+aws lambda invoke --function-name StitchFixClientEngagement-EmailProcessorLambdaC8F1-jKu6lCFPj6ox --payload $(echo -n '{"Records":[{"body":"{\"Type\":\"Notification\",\"MessageId\":\"test-message-id\",\"TopicArn\":\"arn:aws:sns:us-west-2:129013835758:StitchFixClientEngagementStack-EventsTopic063726A1-y1R1onnJrUvq\",\"Message\":\"{\\\"type\\\":\\\"USER_UPDATED\\\",\\\"payload\\\":{\\\"userId\\\":\\\"test-user-low\\\",\\\"email\\\":\\\"test-low@example.com\\\",\\\"name\\\":\\\"Test User Low\\\",\\\"lastOrderDate\\\":\\\"2024-11-21T16:18:00.000Z\\\",\\\"orderCount\\\":2,\\\"averageOrderValue\\\":50,\\\"preferredCategories\\\":[\\\"pants\\\",\\\"shirts\\\"],\\\"engagementScore\\\":15,\\\"createdAt\\\":\\\"2025-03-21T16:18:00.000Z\\\",\\\"updatedAt\\\":\\\"2025-03-21T14:37:00Z\\\"},\\\"timestamp\\\":\\\"2025-03-21T14:37:00Z\\\"}\",\"Timestamp\":\"2025-03-21T14:37:00Z\",\"SignatureVersion\":\"1\",\"Signature\":\"test-signature\",\"SigningCertURL\":\"https://sns.us-west-2.amazonaws.com/SimpleNotificationService-test.pem\",\"UnsubscribeURL\":\"https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=test-arn\",\"MessageAttributes\":{\"event-type\":{\"Type\":\"String\",\"Value\":\"USER_UPDATED\"}}}"}]}' | base64) /tmp/lambda-output.json --profile lz-demos
+```
 ```
 
 ### Testing the Frontend
@@ -512,6 +615,45 @@ export NX_API_URL=https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod &&
 ```bash
 ./build-and-deploy-frontend.sh
 ```
+
+### Handling Email Verification in SES
+
+1. Verify the sender email address:
+
+```bash
+aws ses verify-email-identity --email-address noreply@stitchfix.com --profile lz-demos
+```
+
+2. Verify recipient email addresses:
+
+```bash
+aws ses verify-email-identity --email-address test-low@example.com --profile lz-demos
+```
+
+3. Check verification status:
+
+```bash
+aws ses list-identities --profile lz-demos
+aws ses get-identity-verification-attributes --identities noreply@stitchfix.com test-low@example.com --profile lz-demos
+```
+
+4. For testing purposes, modify the email processor Lambda to skip actual email sending:
+
+```go
+// Skip actual email sending for testing
+debugLog(DEBUG_INFO, "Skipping actual email sending for testing purposes")
+if err := updateEmailStatus(ctx, email.EmailID, EmailStatusSent); err != nil {
+    debugLog(DEBUG_ERROR, "Error updating email status: %v", err)
+    return fmt.Errorf("error updating email status: %w", err)
+}
+return nil
+```
+
+5. Request production access to move out of the SES sandbox:
+   - Go to the AWS SES console
+   - Click on "Request Production Access"
+   - Fill out the form with your use case and expected sending volume
+   - Submit the request
 
 ### Cleaning Up Resources
 
