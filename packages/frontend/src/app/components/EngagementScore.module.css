@@ -1,0 +1,62 @@
+/* EngagementScore container */
+.container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* Bar container */
+.bar {
+  flex: 1;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Fill element */
+.fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* Value text */
+.value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-width: 3rem;
+  text-align: right;
+}
+
+/* Size variants */
+.small {
+  max-width: 100px;
+}
+
+.small .bar {
+  height: 4px;
+}
+
+.small .value {
+  font-size: 0.75rem;
+  min-width: 2.5rem;
+}
+
+.medium {
+  max-width: 200px;
+}
+
+.large {
+  max-width: 300px;
+}
+
+.large .bar {
+  height: 12px;
+}
+
+.large .value {
+  font-size: 1rem;
+  min-width: 3.5rem;
+}

@@ -41,6 +41,8 @@
 - [x] Implemented RESTful endpoints for CRUD operations
 - [x] Added error handling and validation
 - [x] Implemented health check endpoint
+- [x] Integrated with DynamoDB for data persistence
+- [x] Added event publishing to SNS for downstream processing
 
 ### Frontend UI
 
@@ -49,6 +51,7 @@
 - [x] Added form for creating new users
 - [x] Implemented engagement score visualization
 - [x] Added responsive styling with CSS modules
+- [x] Added direct engagement score manipulation
 
 ### Infrastructure
 
@@ -129,6 +132,21 @@
 - [x] Tested the API Gateway endpoints
 - [x] Updated documentation with troubleshooting steps for Lambda handler issues
 
+### Backend API DynamoDB Integration
+
+- [x] Added AWS SDK dependencies for DynamoDB and SNS
+- [x] Replaced in-memory arrays with DynamoDB operations
+- [x] Implemented CRUD operations using DynamoDB
+- [x] Added event publishing to SNS for downstream processing
+- [x] Ensured proper error handling for database operations
+
+### Engagement Score Handling
+
+- [x] Updated the backend to respect provided engagement scores
+- [x] Simplified the frontend code to directly send engagement scores
+- [x] Added logging to track when scores are provided vs. calculated
+- [x] Tested the API to confirm engagement score updates are working
+
 ## In Progress
 
 ### Testing
@@ -136,8 +154,9 @@
 - [x] Continue testing shared package functionality
 - [x] Test email processor functionality
 - [x] Test backend API functionality
-- [ ] Test frontend UI functionality
+- [x] Test frontend UI functionality
 - [ ] Verify end-to-end flow with real data
+- [ ] Debug why emails are not being generated for users with low engagement scores
 
 ### Documentation
 
@@ -236,6 +255,30 @@
    - Issue: Using deprecated GO_1_X runtime
    - Solution: Updated to PROVIDED_AL2023 runtime for Go Lambda functions
 
+### Backend API Issues (Resolved)
+
+1. **In-Memory Storage Limitations**:
+   - Issue: Data lost on Lambda cold starts due to in-memory storage
+   - Solution: Replaced in-memory arrays with DynamoDB operations
+   - Implementation: Added AWS SDK for DynamoDB and implemented CRUD operations
+
+2. **Event Publishing**:
+   - Issue: Events not being published to SNS for downstream processing
+   - Solution: Added event publishing to SNS when users are created, updated, or when orders are created
+   - Implementation: Added AWS SDK for SNS and implemented event publishing
+
+### Engagement Score Issues (Resolved)
+
+1. **Engagement Score Override**:
+   - Issue: Backend recalculating engagement score instead of using provided value
+   - Solution: Updated the backend to respect provided engagement scores
+   - Implementation: Added conditional logic to use provided score if available
+
+2. **Frontend Engagement Score Manipulation**:
+   - Issue: Complex logic to manipulate engagement score indirectly
+   - Solution: Simplified frontend code to directly send engagement scores
+   - Implementation: Updated handleUpdateEngagementScore function to send score directly
+
 ## Achievements
 
 ### Architecture
@@ -252,6 +295,8 @@
 - Built a responsive frontend dashboard
 - Developed a RESTful API for data management
 - Successfully built all packages and verified output binaries
+- Integrated DynamoDB for data persistence
+- Implemented event publishing to SNS for downstream processing
 
 ### Documentation
 
@@ -280,6 +325,10 @@
    - Lesson: Nx build system requires careful configuration
    - Application: Properly configured build targets and dependencies for successful builds
 
+5. **DynamoDB Integration**:
+   - Lesson: DynamoDB provides a scalable and durable storage solution
+   - Application: Used for storing user and email data with automatic scaling
+
 ### Process Lessons
 
 1. **Monorepo Structure**:
@@ -305,11 +354,14 @@ The next milestone is to enhance the system with:
 1. Comprehensive monitoring and logging
 2. Additional testing of all components
 3. Documentation of the deployment process
+4. Debugging of the email generation system
 
-With the system successfully deployed to AWS and the core functionality working, we're in a good position to focus on enhancing the system's reliability and maintainability. The stream processor Lambda is now correctly processing DynamoDB events and publishing them to SNS, and the email processor Lambda is receiving events from SQS and processing them correctly.
+With the system successfully deployed to AWS and most of the core functionality working, we're in a good position to focus on enhancing the system's reliability and maintainability. The stream processor Lambda is now correctly processing DynamoDB events and publishing them to SNS, and the backend API is now using DynamoDB for data persistence.
 
 The deployment process has been improved with custom build scripts using esbuild to properly bundle all dependencies. This ensures that the Lambda functions have all the required dependencies and can run reliably in the AWS environment. We've also implemented a secure deployment process using environment variables for API keys.
 
 We've successfully integrated the OpenRouter API for email generation, replacing the OpenAI client with direct HTTP requests to OpenRouter. This provides more flexibility in model selection and better control over the email generation process.
+
+However, there is an issue with the email generation system. Emails are not being generated for users with low engagement scores, despite the engagement score being correctly updated in the database. This issue is currently being investigated.
 
 The system now demonstrates a production-ready, highly scalable solution that addresses a key business risk for Stitch Fix. It showcases technical excellence through its architecture and implementation, while providing practical business value through its engagement monitoring and automated re-engagement capabilities.

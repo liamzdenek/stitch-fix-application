@@ -29,11 +29,14 @@ The following components have been implemented:
 4. **Backend API**:
    - Express.js API for managing users and emails
    - RESTful endpoints for CRUD operations
+   - DynamoDB integration for data persistence
+   - Event publishing to SNS for downstream processing
 
 5. **Frontend UI**:
    - React application for monitoring user engagement
    - Dashboard for viewing users and emails
    - Form for adding new users
+   - Direct engagement score manipulation
 
 6. **Infrastructure**:
    - AWS CDK stack for defining AWS resources
@@ -97,6 +100,11 @@ The following components have been implemented:
    - Rationale: Provides visibility into engagement metrics
    - Status: Implemented
 
+4. **Direct Engagement Score Manipulation**:
+   - Decision: Allow direct setting of engagement scores in the UI
+   - Rationale: Enables testing of the email generation system without waiting for natural score changes
+   - Status: Implemented
+
 ## Recent Achievements
 
 1. **Fixed TypeScript Type Errors**:
@@ -146,17 +154,35 @@ The following components have been implemented:
    - Tested the API Gateway endpoints to ensure they're working correctly
    - Updated documentation with troubleshooting steps for Lambda handler issues
 
+8. **Updated Backend API to Use DynamoDB**:
+   - Replaced in-memory arrays with DynamoDB operations
+   - Added AWS SDK dependencies for DynamoDB and SNS
+   - Implemented CRUD operations using DynamoDB
+   - Added event publishing to SNS for downstream processing
+   - Ensured proper error handling for database operations
+
+9. **Improved Engagement Score Handling**:
+   - Updated the backend to respect provided engagement scores
+   - Simplified the frontend code to directly send engagement scores
+   - Added logging to track when scores are provided vs. calculated
+   - Tested the API to confirm engagement score updates are working
+
 ## Current Challenges
 
 1. **Testing**:
    - Challenge: Limited time for comprehensive testing
    - Status: Focus on core functionality testing
 
+2. **Email Generation**:
+   - Challenge: Emails are not being generated for users with low engagement scores
+   - Status: Investigating the issue
+
 ## Next Steps
 
 1. **Testing**:
    - Continue testing core functionality
    - Verify end-to-end flow with real data
+   - Debug why emails are not being generated for users with low engagement scores
 
 2. **Documentation**:
    - Complete README
@@ -184,6 +210,11 @@ The following components have been implemented:
    - Options: Configure error document, use Lambda@Edge
    - Current approach: Configure error document to index.html
 
+4. **Email Generation Debugging**:
+   - Question: Why are emails not being generated for users with low engagement scores?
+   - Options: Check CloudWatch logs, verify event flow, test email processor directly
+   - Current approach: Investigating the issue
+
 ## Key Insights
 
 1. **Event-Driven Architecture**:
@@ -202,16 +233,20 @@ The following components have been implemented:
    - Insight: Nx build system requires careful configuration of dependencies
    - Application: Properly configured build targets and dependencies for successful builds
 
+5. **DynamoDB Integration**:
+   - Insight: DynamoDB provides a scalable and durable storage solution
+   - Application: Used for storing user and email data with automatic scaling
+
 ## Current Status
 
-The system is now successfully deployed to AWS with all components working correctly. All core components have been implemented, the TypeScript type errors and infrastructure integration issues have been resolved, and all dependencies have been successfully installed. The project is now properly set up as an Nx monorepo with all the necessary dependencies and correct imports.
+The system is now successfully deployed to AWS with most components working correctly. All core components have been implemented, the TypeScript type errors and infrastructure integration issues have been resolved, and all dependencies have been successfully installed. The project is now properly set up as an Nx monorepo with all the necessary dependencies and correct imports.
 
 All packages have been successfully built with proper bundling of dependencies and deployed to AWS. The shared package, stream processor, backend API, frontend UI, infrastructure, and email processor (Go) are all built and deployed.
 
-The stream processor Lambda is now correctly processing DynamoDB events and publishing them to SNS. The email processor Lambda is receiving events from SQS and processing them correctly. We've verified this by adding test users to the DynamoDB table and checking the CloudWatch logs, which show successful event processing.
+The backend API has been updated to use DynamoDB instead of in-memory storage, ensuring data persistence and enabling the event-driven architecture. The API now publishes events to SNS when users are created, updated, or when orders are created, triggering the downstream processes.
 
-The API Gateway has been successfully integrated with the backend Lambda, allowing the frontend to communicate with the backend API. We fixed an issue where the backend Lambda was not properly set up to work with API Gateway by integrating the serverless-http package and exporting a handler function. The frontend has been updated to use the correct API URL from the deployed API Gateway.
+The engagement score handling has been improved to respect provided engagement scores, allowing for direct manipulation of scores in the UI. This enables testing of the email generation system without waiting for natural score changes.
 
-The deployment process has been improved with custom build scripts using esbuild to properly bundle all dependencies. The Nx build system has been configured with proper dependencies between packages to ensure reliable builds and deployments. We've also implemented a secure deployment process using environment variables for API keys.
+However, there is an issue with the email generation system. Emails are not being generated for users with low engagement scores, despite the engagement score being correctly updated in the database. This issue is currently being investigated.
 
 The system demonstrates a production-ready, highly scalable solution that addresses a key business risk for Stitch Fix. It showcases technical excellence through its architecture and implementation, while providing practical business value through its engagement monitoring and automated re-engagement capabilities.

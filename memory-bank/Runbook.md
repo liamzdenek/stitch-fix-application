@@ -22,6 +22,19 @@ npx nx build frontend
 npx nx build infrastructure
 ```
 
+### Building the Frontend
+
+```bash
+# Build the frontend with the correct API URL
+export NX_API_URL=https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod && npx nx build frontend
+
+# Build the frontend for local development
+export NX_API_URL=http://localhost:3001 && npx nx build frontend
+
+# Serve the frontend locally
+npx nx serve frontend
+```
+
 ### Deploying the Infrastructure
 
 ```bash
@@ -30,6 +43,18 @@ npx nx deploy infrastructure
 
 # Deploy with environment variables
 OPENROUTER_API_KEY=your-api-key npx nx deploy infrastructure
+```
+
+### Deploying the Frontend Only
+
+```bash
+# Build and deploy the frontend only
+./build-and-deploy-frontend.sh
+
+# Manual frontend deployment
+export NX_API_URL=https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod && npx nx build frontend
+aws s3 sync dist/packages/frontend s3://your-bucket-name --profile lz-demos
+aws cloudfront create-invalidation --distribution-id your-distribution-id --paths "/*" --profile lz-demos
 ```
 
 ## Debugging
@@ -49,6 +74,37 @@ aws dynamodb put-item --table-name StitchFixClientEngagementStack-UsersTable9725
 
 # Add a test user with low engagement score (to trigger email generation)
 aws dynamodb put-item --table-name StitchFixClientEngagementStack-UsersTable9725E9C8-MG34X4JZZ63F --item '{"userId":{"S":"test-user-8"},"email":{"S":"test8@example.com"},"name":{"S":"Test User 8"},"lastOrderDate":{"S":"2024-12-21T16:18:00.000Z"},"orderCount":{"N":"5"},"averageOrderValue":{"N":"100"},"preferredCategories":{"L":[{"S":"pants"},{"S":"shirts"}]},"createdAt":{"S":"2025-03-21T16:18:00.000Z"},"updatedAt":{"S":"2025-03-21T16:18:00.000Z"},"engagementScore":{"N":"30"}}' --profile lz-demos
+```
+
+### Testing the API
+
+```bash
+# Test the API health endpoint
+curl https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod/health
+
+# Get all users
+curl https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod/api/users
+
+# Get a specific user
+curl https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod/api/users/user-id
+
+# Create a new user
+curl -X POST https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"email":"john.doe@example.com","name":"John Doe","lastOrderDate":"2025-02-15T12:00:00.000Z","orderCount":5,"averageOrderValue":150,"preferredCategories":["Shirts","Pants","Accessories"]}'
+
+# Update a user's engagement score
+curl -X PUT https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod/api/users/user-id \
+  -H "Content-Type: application/json" \
+  -d '{"engagementScore":15}'
+
+# Get emails for a user
+curl https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod/api/users/user-id/emails
+
+# Create an order for a user
+curl -X POST https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"user-id","items":[{"itemId":"item-1","productId":"product-1","name":"T-Shirt","category":"Shirts","price":29.99,"quantity":1}],"totalValue":29.99}'
 ```
 
 ### Checking Lambda Logs
@@ -233,6 +289,113 @@ streamProcessorLambda.addEventSource(
 );
 ```
 
+### Frontend Issues
+
+#### Issue: API URL not configured correctly
+
+**Symptoms:**
+- Network errors in the browser console
+- API requests failing with CORS errors or 404
+
+**Solution:**
+1. Verify the API URL is set correctly during build:
+```bash
+export NX_API_URL=https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod && npx nx build frontend
+```
+
+2. Check that the API URL is being used correctly in the API service:
+```typescript
+// packages/frontend/src/app/services/api.ts
+const API_URL = process.env['NX_API_URL'] || 'http://localhost:3001';
+```
+
+#### Issue: React Router not working with CloudFront/S3
+
+**Symptoms:**
+- 404 errors when refreshing pages or accessing deep links
+- CloudFront returns the S3 error page instead of the React app
+
+**Solution:**
+1. Configure CloudFront to redirect all 404 errors to index.html:
+```typescript
+// infrastructure/src/lib/infrastructure.ts
+const distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
+  // ...
+  errorResponses: [
+    {
+      httpStatus: 404,
+      responseHttpStatus: 200,
+      responsePagePath: '/index.html',
+    },
+  ],
+});
+```
+
+2. Update the React Router configuration to use browser history:
+```typescript
+// packages/frontend/src/app/app.tsx
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
+const router = createBrowserRouter([
+  // ...
+]);
+
+export function App() {
+  return <RouterProvider router={router} />;
+}
+```
+
+#### Issue: CSS Modules not working
+
+**Symptoms:**
+- Styles not being applied
+- Class names not being generated correctly
+
+**Solution:**
+1. Verify the CSS module import syntax:
+```typescript
+import styles from './Component.module.css';
+
+// Usage
+<div className={styles.container}>...</div>
+```
+
+2. Check the Vite configuration:
+```typescript
+// packages/frontend/vite.config.ts
+export default defineConfig({
+  // ...
+  css: {
+    modules: {
+      localsConvention: 'camelCase',
+    },
+  },
+});
+```
+
+#### Issue: Environment variables not available in the frontend
+
+**Symptoms:**
+- `process.env` is undefined or empty in the frontend code
+- API URL not being set correctly
+
+**Solution:**
+1. Use the correct Vite environment variable syntax:
+```typescript
+// Use import.meta.env instead of process.env
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+```
+
+2. Set environment variables with the VITE_ prefix:
+```bash
+export VITE_API_URL=https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod && npx nx build frontend
+```
+
+3. For Nx projects, use the NX_ prefix which gets transformed to VITE_ during build:
+```bash
+export NX_API_URL=https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod && npx nx build frontend
+```
+
 ## Testing Procedures
 
 ### Testing the Stream Processor
@@ -271,6 +434,42 @@ sleep 15 && aws logs filter-log-events --log-group-name /aws/lambda/StitchFixCli
 aws dynamodb scan --table-name StitchFixClientEngagementStack-EmailsTableF5BA4582-1D3RH80AYSU10 --profile lz-demos
 ```
 
+### Testing the Frontend
+
+1. Test the frontend locally:
+
+```bash
+# Start the backend locally
+cd packages/backend
+node src/main.js
+
+# In another terminal, start the frontend
+cd packages/frontend
+npx nx serve frontend
+```
+
+2. Test the deployed frontend:
+
+```bash
+# Open the CloudFront URL in a browser
+open https://d3coned7g7fmif.cloudfront.net
+```
+
+3. Test the engagement score functionality:
+
+- Create a new user
+- Update the engagement score to 15%
+- Verify the score is updated in the UI
+- Check the DynamoDB table to confirm the score was updated
+
+4. Test the order creation functionality:
+
+- Select a user
+- Click "Create Order"
+- Enter an order value
+- Submit the order
+- Verify the order count and average order value are updated
+
 ## Maintenance Procedures
 
 ### Updating the OpenRouter API Key
@@ -297,6 +496,21 @@ npx nx build email-processor-go
 
 ```bash
 npx nx deploy infrastructure
+```
+
+### Updating the Frontend
+
+1. Make changes to the frontend code
+2. Build the frontend:
+
+```bash
+export NX_API_URL=https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod && npx nx build frontend
+```
+
+3. Deploy the frontend:
+
+```bash
+./build-and-deploy-frontend.sh
 ```
 
 ### Cleaning Up Resources

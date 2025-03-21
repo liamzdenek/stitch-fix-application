@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="#0073b1" />
+  
+  <!-- Email icon -->
+  <rect x="25" y="35" width="50" height="30" rx="2" fill="white" />
+  
+  <!-- Email details -->
+  <path d="M25 35l25 20 25-20" stroke="#0073b1" stroke-width="2" fill="none" />
+  
+  <!-- Engagement arrow -->
+  <path d="M50 65v15" stroke="white" stroke-width="4" stroke-linecap="round" />
+  <path d="M40 70l10 10 10-10" fill="white" />
+</svg>

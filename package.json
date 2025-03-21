@@ -16,6 +16,8 @@
     "@aws-sdk/client-ses": "^3.772.0",
     "@aws-sdk/client-sns": "^3.772.0",
     "@aws-sdk/client-sqs": "^3.772.0",
+    "@aws-sdk/lib-dynamodb": "^3.772.0",
+    "@tanstack/react-router": "^1.114.27",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "helmet": "^7.1.0",
