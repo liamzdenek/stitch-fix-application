@@ -286,7 +286,7 @@ export const UserDetail: React.FC = () => {
             </div>
             
             <div className={styles.emailsSection}>
-              <h2 className={styles.emailsTitle}>User Emails</h2>
+              <h2 className={styles.emailsTitle}>User Re-Engagement Emails</h2>
               
               {userEmails.length === 0 ? (
                 <div className={styles.noEmails}>
