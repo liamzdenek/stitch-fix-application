@@ -37,6 +37,7 @@
 
 .primary:hover {
   background-color: #005d8f;
+  color: white;
 }
 
 .secondary {
@@ -55,6 +56,7 @@
 
 .danger:hover {
   background-color: #e60000;
+  color: white;
 }
 
 .success {
@@ -64,6 +66,7 @@
 
 .success:hover {
   background-color: #3d8b40;
+  color: white;
 }
 
 /* Disabled state */

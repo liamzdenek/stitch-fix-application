@@ -84,6 +84,7 @@
 
 .viewButton:hover {
   background-color: #005d8f;
+  color: white;
 }
 
 /* Responsive styles */
