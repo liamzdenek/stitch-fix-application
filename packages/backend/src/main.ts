@@ -1,6 +1,6 @@
 /**
  * Backend API for the Stitch Fix Client Engagement Acceleration System
- * 
+ *
  * This API provides endpoints for managing users and emails.
  */
 
@@ -8,14 +8,15 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  User, 
-  Email, 
-  EmailStatus, 
+import {
+  User,
+  Email,
+  EmailStatus,
   OrderStatus,
   calculateEngagementScore,
   createApiResponse
 } from '@stitch-fix/shared';
+import serverless from 'serverless-http';
 
 // Initialize Express app
 const app = express();
@@ -186,7 +187,12 @@ app.post('/api/orders', (req, res) => {
   }));
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`Backend API listening on port ${port}`);
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Backend API listening on port ${port}`);
+  });
+}
+
+// Export the serverless handler for AWS Lambda
+export const handler = serverless(app);

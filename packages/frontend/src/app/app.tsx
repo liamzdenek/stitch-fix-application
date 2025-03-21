@@ -28,7 +28,7 @@ interface Email {
 }
 
 // API URL
-const API_URL = process.env.NX_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NX_API_URL || 'https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod';
 
 export function App() {
   const [users, setUsers] = useState<User[]>([]);

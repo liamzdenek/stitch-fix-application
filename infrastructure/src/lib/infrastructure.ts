@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -143,25 +144,55 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
     emailsTable.grantReadWriteData(backendLambda);
     eventsTopic.grantPublish(backendLambda);
 
+    // Create API Gateway
+    const api = new apigateway.RestApi(this, 'BackendApi', {
+      description: 'Backend API for Stitch Fix Client Engagement System',
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS,
+        allowHeaders: apigateway.Cors.DEFAULT_HEADERS,
+      },
+    });
+
+    // Add proxy resource to API Gateway
+    const proxyResource = api.root.addProxy({
+      defaultIntegration: new apigateway.LambdaIntegration(backendLambda),
+      anyMethod: true,
+    });
+
     // Frontend hosting
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
       removalPolicy: cdk.RemovalPolicy.DESTROY, // For demo purposes only
       autoDeleteObjects: true, // For demo purposes only
-      websiteIndexDocument: 'index.html',
-      websiteErrorDocument: 'index.html',
-      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
     });
+
+    // Create an Origin Access Identity for CloudFront
+    const originAccessIdentity = new cloudfront.OriginAccessIdentity(this, 'OriginAccessIdentity', {
+      comment: 'Allow CloudFront to access the S3 bucket',
+    });
+    
+    // Grant read access to the CloudFront OAI
+    frontendBucket.grantRead(originAccessIdentity);
 
     // CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
-        origin: new origins.S3Origin(frontendBucket),
+        origin: new origins.S3Origin(frontendBucket, {
+          originAccessIdentity,
+        }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
       },
       defaultRootObject: 'index.html',
       errorResponses: [
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        },
         {
           httpStatus: 404,
           responseHttpStatus: 200,
@@ -202,6 +233,11 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'FrontendUrl', {
       value: `https://${distribution.distributionDomainName}`,
       description: 'The URL of the frontend',
+    });
+
+    new cdk.CfnOutput(this, 'BackendApiUrl', {
+      value: api.url,
+      description: 'The URL of the backend API',
     });
   }
 }

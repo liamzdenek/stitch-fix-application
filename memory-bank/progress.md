@@ -121,13 +121,21 @@
 - [x] Added proper logging of the table names being used
 - [x] Fixed permissions issues by using the correct table names
 
+### API Gateway and Backend Integration
+
+- [x] Added API Gateway to the infrastructure
+- [x] Fixed backend Lambda to work with API Gateway using serverless-http
+- [x] Updated the frontend to use the correct API URL
+- [x] Tested the API Gateway endpoints
+- [x] Updated documentation with troubleshooting steps for Lambda handler issues
+
 ## In Progress
 
 ### Testing
 
 - [x] Continue testing shared package functionality
 - [x] Test email processor functionality
-- [ ] Test backend API functionality
+- [x] Test backend API functionality
 - [ ] Test frontend UI functionality
 - [ ] Verify end-to-end flow with real data
 
@@ -135,6 +143,7 @@
 
 - [x] Create Operations.md with resource locations
 - [x] Create Runbook.md with debug procedures
+- [x] Update Runbook.md with API Gateway troubleshooting steps
 - [ ] Update README with latest deployment instructions
 
 ## Next Steps
@@ -182,6 +191,18 @@
 3. **Environment Variables Access**:
    - Issue: TypeScript error when accessing process.env properties
    - Solution: Updated to use bracket notation (process.env['PROPERTY_NAME']) for accessing environment variables
+
+### API Gateway Issues (Resolved)
+
+1. **Backend API 502 Error**:
+   - Issue: API Gateway returning 502 Bad Gateway error when accessing the backend API
+   - Solution: Added API Gateway to the infrastructure and configured it to use the backend Lambda
+   - Root cause: The backend Lambda was not properly set up to work with API Gateway
+
+2. **Express App Lambda Integration**:
+   - Issue: Express app not exporting a handler function for Lambda
+   - Solution: Installed serverless-http package and updated the backend code to export a handler function
+   - Implementation: Added `export const handler = serverless(app)` to the backend code
 
 ### Frontend Issues (Resolved)
 

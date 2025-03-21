@@ -139,6 +139,13 @@ The following components have been implemented:
    - Created a secure deployment process with environment variables for API keys
    - Fixed environment variable handling in the Go Lambda for table names
 
+7. **Fixed API Gateway and Backend Integration**:
+   - Added API Gateway to the infrastructure to expose the backend API
+   - Fixed the backend Lambda to work with API Gateway by integrating serverless-http
+   - Updated the frontend to use the correct API URL from the deployed API Gateway
+   - Tested the API Gateway endpoints to ensure they're working correctly
+   - Updated documentation with troubleshooting steps for Lambda handler issues
+
 ## Current Challenges
 
 1. **Testing**:
@@ -202,6 +209,8 @@ The system is now successfully deployed to AWS with all components working corre
 All packages have been successfully built with proper bundling of dependencies and deployed to AWS. The shared package, stream processor, backend API, frontend UI, infrastructure, and email processor (Go) are all built and deployed.
 
 The stream processor Lambda is now correctly processing DynamoDB events and publishing them to SNS. The email processor Lambda is receiving events from SQS and processing them correctly. We've verified this by adding test users to the DynamoDB table and checking the CloudWatch logs, which show successful event processing.
+
+The API Gateway has been successfully integrated with the backend Lambda, allowing the frontend to communicate with the backend API. We fixed an issue where the backend Lambda was not properly set up to work with API Gateway by integrating the serverless-http package and exporting a handler function. The frontend has been updated to use the correct API URL from the deployed API Gateway.
 
 The deployment process has been improved with custom build scripts using esbuild to properly bundle all dependencies. The Nx build system has been configured with proper dependencies between packages to ensure reliable builds and deployments. We've also implemented a secure deployment process using environment variables for API keys.
 

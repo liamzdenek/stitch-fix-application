@@ -98,6 +98,40 @@ npx nx deploy infrastructure
 2. Verify the environment variables are set correctly
 3. Update the infrastructure code to grant the necessary permissions
 
+#### Issue: Express app not working with Lambda (Runtime.HandlerNotFound)
+
+**Symptoms:**
+- API Gateway returns 502 Bad Gateway
+- Lambda logs show "Runtime.HandlerNotFound: main.handler is undefined or not exported"
+
+**Solution:**
+1. Install the serverless-http package:
+```bash
+npm install --save serverless-http --legacy-peer-deps
+```
+
+2. Update the Express app to export a handler function:
+```typescript
+import serverless from 'serverless-http';
+
+// Express app setup...
+
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Backend API listening on port ${port}`);
+  });
+}
+
+// Export the serverless handler for AWS Lambda
+export const handler = serverless(app);
+```
+
+3. Build and deploy:
+```bash
+npx nx build backend && npx nx deploy infrastructure
+```
+
 ### Go Lambda Issues
 
 #### Issue: Invalid entrypoint

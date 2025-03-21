@@ -28,4 +28,7 @@ export default defineConfig(() => ({
       transformMixedEsModules: true,
     },
   },
+  define: {
+    'process.env.NX_API_URL': JSON.stringify('https://5bxfbt52m9.execute-api.us-west-2.amazonaws.com/prod'),
+  },
 }));

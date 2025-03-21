@@ -1,4 +1,4 @@
-# Stitch Fix Client Engagement Acceleration System - Operations
+ # Stitch Fix Client Engagement Acceleration System - Operations
 
 This document contains details of where all the resources can be located and how to operate the system.
 
