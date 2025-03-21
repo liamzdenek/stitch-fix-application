@@ -30,7 +30,7 @@
 
 - [x] Created Lambda function for processing events from SQS
 - [x] Implemented engagement score calculation
-- [x] Added OpenAI integration for email generation
+- [x] Added OpenRouter API integration for email generation
 - [x] Implemented email sending via SES
 - [x] Added error handling and logging
 - [x] Set up AWS SDK clients
@@ -106,16 +106,36 @@
 - [x] Deploy infrastructure to AWS
 - [x] Verify deployment
 - [x] Test stream processor functionality with DynamoDB events
+- [x] Test email processor functionality with SQS events
+
+### OpenRouter Integration
+
+- [x] Replaced OpenAI client with direct HTTP requests to OpenRouter API
+- [x] Updated the API request and response handling to match OpenRouter's format
+- [x] Added support for the deepseek/deepseek-r1-distill-llama-70b model
+- [x] Created a secure deployment process with environment variables for API keys
+
+### Environment Variable Handling
+
+- [x] Fixed environment variable handling in the Go Lambda for table names
+- [x] Added proper logging of the table names being used
+- [x] Fixed permissions issues by using the correct table names
 
 ## In Progress
 
 ### Testing
 
-- [ ] Continue testing shared package functionality
-- [ ] Test email processor functionality
+- [x] Continue testing shared package functionality
+- [x] Test email processor functionality
 - [ ] Test backend API functionality
 - [ ] Test frontend UI functionality
 - [ ] Verify end-to-end flow with real data
+
+### Documentation
+
+- [x] Create Operations.md with resource locations
+- [x] Create Runbook.md with debug procedures
+- [ ] Update README with latest deployment instructions
 
 ## Next Steps
 
@@ -265,8 +285,10 @@ The next milestone is to enhance the system with:
 2. Additional testing of all components
 3. Documentation of the deployment process
 
-With the system successfully deployed to AWS and the core functionality working, we're in a good position to focus on enhancing the system's reliability and maintainability. The stream processor Lambda is now correctly processing DynamoDB events and publishing them to SNS, which is a key component of the event-driven architecture.
+With the system successfully deployed to AWS and the core functionality working, we're in a good position to focus on enhancing the system's reliability and maintainability. The stream processor Lambda is now correctly processing DynamoDB events and publishing them to SNS, and the email processor Lambda is receiving events from SQS and processing them correctly.
 
-The deployment process has been improved with custom build scripts using esbuild to properly bundle all dependencies. This ensures that the Lambda functions have all the required dependencies and can run reliably in the AWS environment.
+The deployment process has been improved with custom build scripts using esbuild to properly bundle all dependencies. This ensures that the Lambda functions have all the required dependencies and can run reliably in the AWS environment. We've also implemented a secure deployment process using environment variables for API keys.
+
+We've successfully integrated the OpenRouter API for email generation, replacing the OpenAI client with direct HTTP requests to OpenRouter. This provides more flexibility in model selection and better control over the email generation process.
 
 The system now demonstrates a production-ready, highly scalable solution that addresses a key business risk for Stitch Fix. It showcases technical excellence through its architecture and implementation, while providing practical business value through its engagement monitoring and automated re-engagement capabilities.

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -17,7 +20,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	sestypes "github.com/aws/aws-sdk-go-v2/service/ses/types"
-	"github.com/sashabaranov/go-openai"
 )
 
 // User represents a customer in the system
@@ -62,10 +64,6 @@ const (
 	// Minimum days between emails
 	MinDaysBetweenEmails = 7
 
-	// DynamoDB table names
-	UsersTableName  = "Users"
-	EmailsTableName = "Emails"
-
 	// Email status values
 	EmailStatusGenerated = "GENERATED"
 	EmailStatusSent      = "SENT"
@@ -78,11 +76,41 @@ const (
 	EventTypeOrderUpdated = "ORDER_UPDATED"
 )
 
+// DynamoDB table names (will be overridden by environment variables)
+var (
+	UsersTableName  = "StitchFixClientEngagementStack-UsersTable9725E9C8-MG34X4JZZ63F"
+	EmailsTableName = "StitchFixClientEngagementStack-EmailsTableF5BA4582-1D3RH80AYSU10"
+)
+
+// OpenRouter API types
+type OpenRouterMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type OpenRouterRequest struct {
+	Model    string              `json:"model"`
+	Messages []OpenRouterMessage `json:"messages"`
+}
+
+type OpenRouterChoice struct {
+	Message struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	} `json:"message"`
+}
+
+type OpenRouterResponse struct {
+	ID      string             `json:"id"`
+	Choices []OpenRouterChoice `json:"choices"`
+}
+
 // Global clients
 var (
-	dynamoClient *dynamodb.Client
-	sesClient    *ses.Client
-	openaiClient *openai.Client
+	dynamoClient     *dynamodb.Client
+	sesClient        *ses.Client
+	httpClient       *http.Client
+	openRouterApiKey string
 )
 
 func init() {
@@ -95,12 +123,27 @@ func init() {
 	dynamoClient = dynamodb.NewFromConfig(cfg)
 	sesClient = ses.NewFromConfig(cfg)
 
-	// Initialize OpenAI client
-	openaiApiKey := os.Getenv("OPENAI_API_KEY")
-	if openaiApiKey == "" {
-		log.Println("Warning: OPENAI_API_KEY not set")
+	// Initialize HTTP client for OpenRouter
+	httpClient = &http.Client{
+		Timeout: time.Second * 30,
 	}
-	openaiClient = openai.NewClient(openaiApiKey)
+
+	// Get OpenRouter API key
+	openRouterApiKey = os.Getenv("OPENROUTER_API_KEY")
+	if openRouterApiKey == "" {
+		log.Println("Warning: OPENROUTER_API_KEY not set")
+	}
+
+	// Get table names from environment variables
+	if tableName := os.Getenv("USERS_TABLE_NAME"); tableName != "" {
+		UsersTableName = tableName
+		log.Printf("Using users table: %s", UsersTableName)
+	}
+
+	if tableName := os.Getenv("EMAILS_TABLE_NAME"); tableName != "" {
+		EmailsTableName = tableName
+		log.Printf("Using emails table: %s", EmailsTableName)
+	}
 }
 
 // Lambda handler function
@@ -292,7 +335,7 @@ func shouldGenerateEmail(user User, engagementScore float64) bool {
 
 // Generate an email for a user
 func generateEmail(ctx context.Context, user User, engagementScore float64) (Email, error) {
-	// Generate a subject and content using OpenAI
+	// Generate a subject and content using OpenRouter
 	subject, content, err := generateEmailContent(ctx, user)
 	if err != nil {
 		return Email{}, fmt.Errorf("error generating email content: %w", err)
@@ -313,9 +356,9 @@ func generateEmail(ctx context.Context, user User, engagementScore float64) (Ema
 	return email, nil
 }
 
-// Generate email content using OpenAI
+// Generate email content using OpenRouter
 func generateEmailContent(ctx context.Context, user User) (string, string, error) {
-	// Create a prompt for OpenAI
+	// Create a prompt for OpenRouter
 	prompt := fmt.Sprintf(`
 Generate a personalized email for a Stitch Fix customer with the following information:
 - Name: %s
@@ -334,32 +377,76 @@ The email should:
 Format the response as JSON with "subject" and "content" fields.
 `, user.Name, user.LastOrderDate, user.OrderCount, user.AverageOrderValue, user.PreferredCategories)
 
-	// Call OpenAI API
-	resp, err := openaiClient.CreateChatCompletion(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model: openai.GPT4,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: prompt,
-				},
+	// Create the request body
+	requestBody := OpenRouterRequest{
+		Model: "deepseek/deepseek-r1-distill-llama-70b",
+		Messages: []OpenRouterMessage{
+			{
+				Role:    "user",
+				Content: prompt,
 			},
-			Temperature: 0.7,
 		},
+	}
+
+	// Marshal the request body to JSON
+	requestBodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", "", fmt.Errorf("error marshaling request body: %w", err)
+	}
+
+	// Create the HTTP request
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		"https://openrouter.ai/api/v1/chat/completions",
+		bytes.NewBuffer(requestBodyBytes),
 	)
 	if err != nil {
-		return "", "", fmt.Errorf("error calling OpenAI API: %w", err)
+		return "", "", fmt.Errorf("error creating HTTP request: %w", err)
+	}
+
+	// Set the headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+openRouterApiKey)
+	req.Header.Set("HTTP-Referer", "https://stitchfix.com")
+
+	// Send the request
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", "", fmt.Errorf("error sending HTTP request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", fmt.Errorf("error reading response body: %w", err)
+	}
+
+	// Check the status code
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("error from OpenRouter API: %s", string(responseBody))
 	}
 
 	// Parse the response
+	var openRouterResp OpenRouterResponse
+	if err := json.Unmarshal(responseBody, &openRouterResp); err != nil {
+		return "", "", fmt.Errorf("error parsing response: %w", err)
+	}
+
+	// Check if we got any choices
+	if len(openRouterResp.Choices) == 0 {
+		return "", "", fmt.Errorf("no choices in response")
+	}
+
+	// Parse the content as JSON
 	var result struct {
 		Subject string `json:"subject"`
 		Content string `json:"content"`
 	}
-	if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), &result); err != nil {
+	if err := json.Unmarshal([]byte(openRouterResp.Choices[0].Message.Content), &result); err != nil {
 		// If parsing fails, use the raw response
-		return "Check out what's new at Stitch Fix", resp.Choices[0].Message.Content, nil
+		return "Check out what's new at Stitch Fix", openRouterResp.Choices[0].Message.Content, nil
 	}
 
 	return result.Subject, result.Content, nil

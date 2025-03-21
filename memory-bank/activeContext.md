@@ -23,7 +23,7 @@ The following components have been implemented:
 3. **Email Processor (Go)**:
    - Lambda function for processing events from SQS
    - Engagement score calculation
-   - Email generation using OpenAI
+   - Email generation using OpenRouter API
    - Email sending via SES
 
 4. **Backend API**:
@@ -88,8 +88,8 @@ The following components have been implemented:
    - Status: Implemented
 
 2. **Email Generation**:
-   - Decision: Use OpenAI for generating personalized email content
-   - Rationale: Provides high-quality, personalized content
+   - Decision: Use OpenRouter API with deepseek/deepseek-r1-distill-llama-70b model for generating personalized email content
+   - Rationale: Provides high-quality, personalized content with more flexibility in model selection
    - Status: Implemented
 
 3. **Frontend Dashboard**:
@@ -132,6 +132,13 @@ The following components have been implemented:
    - Successfully deployed the infrastructure to AWS
    - Verified the stream processor Lambda is working correctly by testing with DynamoDB events
 
+6. **Integrated OpenRouter API**:
+   - Replaced OpenAI client with direct HTTP requests to OpenRouter API
+   - Updated the API request and response handling to match OpenRouter's format
+   - Added support for the deepseek/deepseek-r1-distill-llama-70b model
+   - Created a secure deployment process with environment variables for API keys
+   - Fixed environment variable handling in the Go Lambda for table names
+
 ## Current Challenges
 
 1. **Testing**:
@@ -155,10 +162,10 @@ The following components have been implemented:
 
 ## Open Questions
 
-1. **OpenAI API Key Management**:
-   - Question: How to securely manage the OpenAI API key in production?
+1. **OpenRouter API Key Management**:
+   - Question: How to securely manage the OpenRouter API key in production?
    - Options: AWS Secrets Manager, environment variables, parameter store
-   - Current approach: Environment variables for demo
+   - Current approach: Environment variables with .env.deploy file for secure deployment
 
 2. **Email Sending Limits**:
    - Question: How to handle SES sending limits in production?
@@ -194,8 +201,8 @@ The system is now successfully deployed to AWS with all components working corre
 
 All packages have been successfully built with proper bundling of dependencies and deployed to AWS. The shared package, stream processor, backend API, frontend UI, infrastructure, and email processor (Go) are all built and deployed.
 
-The stream processor Lambda is now correctly processing DynamoDB events and publishing them to SNS. We've verified this by adding test users to the DynamoDB table and checking the CloudWatch logs, which show successful event processing.
+The stream processor Lambda is now correctly processing DynamoDB events and publishing them to SNS. The email processor Lambda is receiving events from SQS and processing them correctly. We've verified this by adding test users to the DynamoDB table and checking the CloudWatch logs, which show successful event processing.
 
-The deployment process has been improved with custom build scripts using esbuild to properly bundle all dependencies. The Nx build system has been configured with proper dependencies between packages to ensure reliable builds and deployments.
+The deployment process has been improved with custom build scripts using esbuild to properly bundle all dependencies. The Nx build system has been configured with proper dependencies between packages to ensure reliable builds and deployments. We've also implemented a secure deployment process using environment variables for API keys.
 
 The system demonstrates a production-ready, highly scalable solution that addresses a key business risk for Stitch Fix. It showcases technical excellence through its architecture and implementation, while providing practical business value through its engagement monitoring and automated re-engagement capabilities.

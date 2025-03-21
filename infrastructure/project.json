@@ -93,8 +93,9 @@
       ],
       "options": {
         "commands": [
-          "cd dist/infrastructure && npx cdk deploy --profile lz-demos --require-approval never --app 'node src/bin/cdk-app.js' --no-color"
+          "./infrastructure/deploy.sh"
         ],
+        "cwd": ".",
         "parallel": false,
         "maxBuffer": 10000000
       }

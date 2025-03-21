@@ -98,14 +98,15 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
     // Email Processor Lambda (Go)
     const emailProcessorLambda = new lambda.Function(this, 'EmailProcessorLambda', {
       code: lambda.Code.fromAsset(path.join(GIT_ROOT, 'packages/email-processor-go/dist')),
-      handler: 'email-processor',
+      handler: 'bootstrap',
       runtime: lambda.Runtime.PROVIDED_AL2023,
+      architecture: lambda.Architecture.X86_64,
       timeout: cdk.Duration.seconds(60),
       memorySize: 256,
       environment: {
         USERS_TABLE_NAME: usersTable.tableName,
         EMAILS_TABLE_NAME: emailsTable.tableName,
-        ['OPENAI_API_KEY']: process.env['OPENAI_API_KEY'] || 'dummy-key', // Should be set in deployment
+        ['OPENROUTER_API_KEY']: process.env['OPENROUTER_API_KEY'] || 'dummy-key', // Should be set in deployment
       },
     });
 
