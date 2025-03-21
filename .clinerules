@@ -1,0 +1,130 @@
+# Stitch Fix Client Engagement Acceleration System - Project Rules
+
+## Development Rules
+
+1. **12-Factor App Implementation**:
+   - Implement a 12-Factor app, to the extent it can be done cloud natively
+   - Use environment variables for configuration at runtime
+   - Pass location/ARN of AWS resources into programs through environment variables
+   - For front-end code, make the same environment variables available at build time
+
+2. **Error Handling**:
+   - Do not implement fallback, ever
+   - Either the main path works, or it fails and we log the failure
+   - No graceful degradation or fallback mechanisms
+
+3. **Project Structure**:
+   - Use an Nx monorepo
+   - Put all monorepo packages inside a `packages` directory
+   - Use `nx generate` commands for project initialization
+   - Never write one-off scripts, always attach them to an `nx run` command
+
+4. **Frontend Development**:
+   - Use React
+   - Use CSS modules, no Tailwind CSS, no CSS framework
+   - Use TypeScript by default
+
+5. **Backend Development**:
+   - Use TypeScript by default
+   - Put all shared types in a shared package
+   - Do not import the frontend into the backend or vice-versa
+   - If both need something, it must be in shared
+   - Use Zod for schema validation
+
+6. **Infrastructure**:
+   - Design infrastructure for AWS
+   - Deploy using CDK
+   - Use NodejsFunction primitive in CDK
+   - Do not use CDK to compile JavaScript
+   - Compile outside of CDK and import the compiled artifacts
+
+7. **Testing**:
+   - Do not use Playwright or other e2e testing, it's out of scope
+   - Do not mock or bother with local development
+   - Use actual AWS deployments to test
+
+8. **Logging and Monitoring**:
+   - Always include debug logging, including requests and responses
+   - Always include a health check endpoint
+   - Include checks for dependencies in the health check
+
+9. **Dependency Management**:
+   - Always --save or --save-dev your dependencies
+
+## Project Intelligence
+
+### Critical Implementation Paths
+
+1. **DynamoDB Stream Processing**:
+   - DynamoDB Streams must be enabled on the Users table
+   - Stream Processor Lambda must be configured to process these events
+   - Events must be published to SNS for durability
+
+2. **Event Flow**:
+   - Stream Processor Lambda → SNS → SQS → Email Processor Lambda
+   - This chain ensures durability and rate control
+
+3. **Engagement Scoring**:
+   - Calculated in the Email Processor Lambda
+   - Based on order recency, frequency, and value
+   - Threshold determines when to generate emails
+
+### User Preferences and Workflow
+
+1. **Frontend Organization**:
+   - Single React application with multiple views
+   - User management interface
+   - Email dashboard interface
+
+2. **API Structure**:
+   - RESTful API endpoints for users and emails
+   - Health check endpoint for monitoring
+
+### Project-Specific Patterns
+
+1. **Event-Driven Architecture**:
+   - Database changes trigger events
+   - Events flow through SNS/SQS for processing
+   - Decoupled components communicate asynchronously
+
+2. **Environment Variables**:
+   - Used for all configuration
+   - AWS resource ARNs/names passed as environment variables
+   - API keys and secrets managed through environment variables
+
+### Known Challenges
+
+1. **Time Constraints**:
+   - 1-day implementation timeframe
+   - Focus on core functionality over nice-to-have features
+
+2. **AWS Deployment**:
+   - Initial deployment may require troubleshooting
+   - IAM permissions and resource configurations
+
+3. **OpenRouter Integration**:
+   - API key management and security
+   - Rate limits and potential service disruptions
+
+### Evolution of Project Decisions
+
+1. **Architecture Refinement**:
+   - Initially considered direct event publishing from backend
+   - Evolved to DynamoDB Streams for better reliability
+   - Added SNS/SQS for durability and rate control
+
+2. **Frontend Consolidation**:
+   - Initially planned separate UIs for user management and email dashboard
+   - Consolidated into a single React application for simplicity
+
+### Tool Usage Patterns
+
+1. **Nx Commands**:
+   - Use `nx generate` for creating new components
+   - Use `nx run` for executing tasks
+   - Use `nx run-many` for building multiple packages
+
+2. **CDK Deployment**:
+   - Build all packages before deployment
+   - Deploy infrastructure first
+   - Deploy frontend assets to S3
