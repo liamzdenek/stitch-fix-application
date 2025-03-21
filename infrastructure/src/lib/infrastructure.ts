@@ -2,6 +2,8 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
@@ -52,7 +54,7 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
     eventsTopic.addSubscription(new subscriptions.SqsSubscription(emailQueue));
 
     // Stream Processor Lambda
-    const streamProcessorLambda = new lambda.NodejsFunction(this, 'StreamProcessorLambda', {
+    const streamProcessorLambda = new lambdaNodejs.NodejsFunction(this, 'StreamProcessorLambda', {
       entry: path.join(__dirname, '../../../../packages/stream-processor/src/main.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -70,7 +72,7 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
     eventsTopic.grantPublish(streamProcessorLambda);
 
     // Configure the Lambda to be triggered by the DynamoDB stream
-    streamProcessorLambda.addEventSource(new lambda.DynamoEventSource(usersTable, {
+    streamProcessorLambda.addEventSource(new lambdaEventSources.DynamoEventSource(usersTable, {
       startingPosition: lambda.StartingPosition.LATEST,
       batchSize: 10,
       retryAttempts: 3,
@@ -99,13 +101,13 @@ export class StitchFixClientEngagementStack extends cdk.Stack {
     }));
 
     // Configure the Lambda to be triggered by the SQS queue
-    emailProcessorLambda.addEventSource(new lambda.SqsEventSource(emailQueue, {
+    emailProcessorLambda.addEventSource(new lambdaEventSources.SqsEventSource(emailQueue, {
       batchSize: 10,
       maxBatchingWindow: cdk.Duration.seconds(30),
     }));
 
     // Backend API Lambda
-    const backendLambda = new lambda.NodejsFunction(this, 'BackendLambda', {
+    const backendLambda = new lambdaNodejs.NodejsFunction(this, 'BackendLambda', {
       entry: path.join(__dirname, '../../../../packages/backend/src/main.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
