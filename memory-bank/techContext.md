@@ -1,381 +1,325 @@
-# Technical Context: Stitch Fix Client Engagement Acceleration System
+# Stitch Fix Client Engagement Acceleration System - Technical Context
 
-## Technologies Used
+## Technology Stack
 
 ### Frontend
-- **React**: UI library for building the user interface
-- **TypeScript**: Type-safe JavaScript for improved developer experience
-- **CSS Modules**: Scoped CSS styling without frameworks
-- **Axios**: HTTP client for API communication
+
+- **Framework**: React
+- **Language**: TypeScript
+- **Build Tool**: Vite (via Nx)
+- **Styling**: CSS Modules
+- **Hosting**: S3 + CloudFront
+
+The frontend is a React application built with TypeScript. It uses CSS Modules for styling to ensure component-scoped styles without conflicts. The application is built with Vite through the Nx build system and deployed to S3 with CloudFront for content delivery.
 
 ### Backend
-- **Node.js**: JavaScript runtime for server-side code
-- **Express**: Web framework for API endpoints
-- **TypeScript**: Type-safe JavaScript for backend code
-- **Zod**: Schema validation library
+
+- **API Framework**: Express.js
+- **Language**: TypeScript
+- **Runtime**: Node.js
+- **Deployment**: AWS Lambda
+
+The backend API is built with Express.js and TypeScript, running on Node.js. It is deployed as an AWS Lambda function for serverless operation. The API provides RESTful endpoints for managing users and emails.
+
+### Stream Processor
+
+- **Language**: TypeScript
+- **Runtime**: Node.js
+- **Deployment**: AWS Lambda
+- **Trigger**: DynamoDB Streams
+
+The stream processor is a TypeScript Lambda function that processes DynamoDB stream events. It is triggered by changes to the Users table and publishes events to an SNS topic.
+
+### Email Processor
+
+- **Language**: Go
+- **Runtime**: Go Runtime
+- **Deployment**: AWS Lambda
+- **Trigger**: SQS Queue
+
+The email processor is a Go Lambda function that processes events from an SQS queue. It calculates engagement scores, generates personalized emails using OpenAI, and sends them via SES.
+
+### Data Storage
+
+- **Database**: Amazon DynamoDB
+- **Tables**: Users, Emails
+- **Streams**: Enabled on Users table
+- **Indexes**: GSI on Emails table for userId
+
+DynamoDB is used for data storage, with two main tables: Users and Emails. The Users table has streams enabled to capture changes, and the Emails table has a global secondary index for querying emails by user.
+
+### Messaging
+
+- **Event Bus**: Amazon SNS
+- **Queue**: Amazon SQS
+- **Topics**: Events topic
+
+SNS is used as an event bus for publishing events, with SQS as a queue for buffering events before processing. This provides durability and rate control for event processing.
 
 ### Infrastructure
-- **AWS CDK**: Infrastructure as code for AWS resources
-- **AWS Lambda**: Serverless compute for backend services
-- **Amazon DynamoDB**: NoSQL database for data storage
-- **DynamoDB Streams**: Event source for data changes
-- **Amazon SNS**: Pub/sub messaging for event distribution
-- **Amazon SQS**: Message queuing for durable processing
-- **Amazon S3**: Storage for frontend assets
-- **Amazon CloudFront**: CDN for frontend delivery
-- **AWS API Gateway**: API management and routing
+
+- **IaC Tool**: AWS CDK
+- **Language**: TypeScript
+- **Deployment**: CloudFormation
+
+Infrastructure is defined as code using AWS CDK with TypeScript. This generates CloudFormation templates for deployment, ensuring reproducible infrastructure.
 
 ### External Services
-- **OpenRouter**: API for accessing LLM models
 
-### Development Tools
-- **Nx**: Build system and extensible dev tools for monorepos
-- **Jest**: Testing framework
-- **ESLint**: Code linting
-- **Prettier**: Code formatting
+- **Email Sending**: Amazon SES
+- **Content Generation**: OpenAI API
 
-## Development Setup
+Amazon SES is used for sending emails, and the OpenAI API is used for generating personalized email content.
 
-### Project Structure
-The project follows an Nx monorepo structure with packages organized as follows:
+## Development Environment
 
-```
-stitch-fix-application/
-├── packages/
-│   ├── shared/                   # Shared types and utilities
-│   ├── frontend/                 # React application
-│   ├── backend/                  # Express API server
-│   ├── stream-processor/         # DynamoDB Stream processor
-│   ├── email-processor/          # Email generation processor
-├── infrastructure/               # CDK infrastructure code
-```
+### Monorepo Structure
 
-### Development Workflow
-1. Initialize the Nx workspace
-2. Create packages using `nx generate` commands
-3. Implement shared types and utilities
-4. Implement backend services
-5. Implement frontend application
-6. Deploy infrastructure using CDK
-7. Test the end-to-end flow
+The project uses an Nx monorepo with the following packages:
+
+- **shared**: Shared types and utilities
+- **stream-processor**: Lambda for processing DynamoDB streams
+- **email-processor-go**: Go Lambda for processing emails
+- **backend**: Express.js API
+- **frontend**: React UI
+- **infrastructure**: AWS CDK infrastructure
+
+### Build System
+
+- **Build Tool**: Nx
+- **Task Runner**: Nx
+- **Package Manager**: npm
+
+Nx is used as both the build tool and task runner, providing a consistent interface for building, testing, and deploying all packages. npm is used for package management.
+
+### Version Control
+
+- **System**: Git
+- **Workflow**: Feature branches
+- **Commit Style**: Conventional Commits
+
+Git is used for version control, with a feature branch workflow. Commits follow the Conventional Commits style for clarity and automation.
+
+### Code Quality
+
+- **Linter**: ESLint
+- **Formatter**: Prettier
+- **Type Checking**: TypeScript
+
+ESLint is used for linting, Prettier for formatting, and TypeScript for type checking. This ensures consistent code quality across the project.
+
+## Deployment Pipeline
+
+### Local Development
+
+1. Install dependencies: `npm install`
+2. Build all packages: `npx nx run-many --target=build --all`
+3. Run the backend locally: `npx nx serve backend`
+4. Run the frontend locally: `npx nx serve frontend`
+
+### AWS Deployment
+
+1. Build all packages: `npx nx run-many --target=build --all`
+2. Deploy the infrastructure: `cd infrastructure && cdk deploy`
 
 ## Technical Constraints
 
-### 12-Factor App Principles
-The application follows the 12-Factor App methodology:
+### AWS Services
 
-1. **Codebase**: Single monorepo in Git
-2. **Dependencies**: Explicitly declared and isolated
-3. **Config**: Stored in environment variables
-4. **Backing Services**: Treated as attached resources
-5. **Build, Release, Run**: Strict separation between stages
-6. **Processes**: Stateless processes with data in backing services
-7. **Port Binding**: Services export via port binding
-8. **Concurrency**: Scale via the process model
-9. **Disposability**: Fast startup and graceful shutdown
-10. **Dev/Prod Parity**: Same AWS services in all environments
-11. **Logs**: Treated as event streams
-12. **Admin Processes**: Run as one-off processes via CDK
+The system is designed to run on AWS, using the following services:
 
-### Project Rules
-1. Implement a 12-Factor app, to the extent it can be done cloud natively
-2. Pass location/ARN of AWS resources into programs through environment variables
-3. Do not implement fallback, ever - either the main path works, or it fails and logs the failure
-4. Never write one-off scripts, always attach them to an `nx run` command
-5. Use an Nx monorepo
-6. Use React
-7. Use `nx generate` commands for project initialization
-8. Use TypeScript by default
-9. Use CSS modules, no Tailwind CSS, no CSS framework
-10. Always --save or --save-dev dependencies
-11. Design infrastructure for AWS
-12. Deploy using CDK with NodejsFunction primitive
-13. Put all monorepo packages inside a `packages` directory
-14. No e2e testing with Playwright
-15. Use actual AWS deployments for testing, no local development mocks
-16. Do not use CDK to compile JavaScript, compile outside of CDK and import compiled artifacts
-17. Put shared types in a shared package
-18. Use Zod for schema validation
-19. Include debug logging, including requests and responses
-20. Include health check endpoints with dependency checks
+- **Compute**: Lambda
+- **Storage**: DynamoDB, S3
+- **Messaging**: SNS, SQS
+- **Delivery**: CloudFront, SES
+- **Deployment**: CloudFormation (via CDK)
 
-## Dependencies
+### Serverless Architecture
 
-### Shared Package
-```json
-{
-  "dependencies": {
-    "zod": "^3.22.4",
-    "uuid": "^9.0.1"
-  },
-  "devDependencies": {
-    "@types/uuid": "^9.0.7"
-  }
-}
-```
+The system follows a serverless architecture, with the following constraints:
 
-### Frontend Package
-```json
-{
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.21.1",
-    "axios": "^1.6.2",
-    "@stitch-fix/shared": "*"
-  }
-}
-```
+- **Execution Time**: Lambda functions are limited to 15 minutes
+- **Memory**: Lambda functions are limited to 10GB
+- **Payload Size**: API Gateway is limited to 10MB
+- **Concurrency**: Lambda functions have concurrency limits
 
-### Backend Package
-```json
-{
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "helmet": "^7.1.0",
-    "aws-sdk": "^2.1525.0",
-    "@stitch-fix/shared": "*"
-  },
-  "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/cors": "^2.8.17"
-  }
-}
-```
+### External API Limits
 
-### Stream Processor Package
-```json
-{
-  "dependencies": {
-    "aws-sdk": "^2.1525.0",
-    "@stitch-fix/shared": "*"
-  },
-  "devDependencies": {
-    "@types/aws-lambda": "^8.10.130"
-  }
-}
-```
+The system integrates with external APIs, with the following constraints:
 
-### Email Processor Package
-```json
-{
-  "dependencies": {
-    "aws-sdk": "^2.1525.0",
-    "openrouter": "^2.0.0",
-    "@stitch-fix/shared": "*"
-  },
-  "devDependencies": {
-    "@types/aws-lambda": "^8.10.130"
-  }
-}
-```
+- **OpenAI API**: Rate limits and token limits
+- **SES**: Sending limits and reputation management
 
-### Infrastructure Package
-```json
-{
-  "dependencies": {
-    "aws-cdk-lib": "^2.115.0",
-    "constructs": "^10.3.0"
-  }
-}
-```
+## Technical Decisions
 
-## Environment Variables
+### TypeScript for Most Components
 
-### Frontend Environment Variables
-- `REACT_APP_API_URL`: URL of the API Gateway
-- `REACT_APP_REGION`: AWS region
+TypeScript was chosen for most components due to:
 
-### Backend Lambda Environment Variables
-- `USERS_TABLE_NAME`: Name of the DynamoDB users table
-- `EMAILS_TABLE_NAME`: Name of the DynamoDB emails table
-- `AWS_REGION`: AWS region
-- `CORS_ORIGIN`: Allowed CORS origin
-- `LOG_LEVEL`: Logging level
+- **Type Safety**: Catch errors at compile time
+- **Developer Experience**: Better IDE support and documentation
+- **Ecosystem**: Rich ecosystem of libraries and tools
+- **Consistency**: Same language for frontend, backend, and infrastructure
 
-### Stream Processor Lambda Environment Variables
-- `SNS_TOPIC_ARN`: ARN of the SNS topic
-- `AWS_REGION`: AWS region
-- `LOG_LEVEL`: Logging level
+### Go for Email Processor
 
-### Email Processor Lambda Environment Variables
-- `USERS_TABLE_NAME`: Name of the DynamoDB users table
-- `EMAILS_TABLE_NAME`: Name of the DynamoDB emails table
-- `OPENROUTER_API_KEY`: API key for OpenRouter
-- `ENGAGEMENT_THRESHOLD`: Threshold for generating emails (default: 50)
-- `AWS_REGION`: AWS region
-- `LOG_LEVEL`: Logging level
+Go was chosen for the email processor due to:
 
-## API Contracts
+- **Performance**: Faster startup time and lower memory usage
+- **Concurrency**: Efficient handling of concurrent requests
+- **Simplicity**: Straightforward error handling and memory management
+- **AWS Integration**: Good support for AWS Lambda
 
-### User API
+### DynamoDB for Data Storage
 
-#### GET /api/users
+DynamoDB was chosen for data storage due to:
 
-**Response:**
-```typescript
-interface GetUsersResponse {
-  users: User[];
-}
-```
+- **Scalability**: Automatic scaling of throughput
+- **Performance**: Low-latency access at any scale
+- **Streams**: Built-in change data capture
+- **Serverless**: No servers to manage
+- **Cost**: Pay-per-request pricing model
 
-#### GET /api/users/:userId
+### SNS/SQS for Messaging
 
-**Response:**
-```typescript
-interface GetUserResponse {
-  user: User;
-}
-```
+SNS and SQS were chosen for messaging due to:
 
-#### POST /api/users
+- **Decoupling**: Loose coupling between components
+- **Durability**: Messages are stored durably
+- **Scalability**: Automatic scaling of throughput
+- **Filtering**: Message filtering capabilities
+- **Fan-Out**: One-to-many message delivery
 
-**Request:**
-```typescript
-interface CreateUserRequest {
-  name: string;
-  email: string;
-  lastOrderDate: string;
-  orderCount: number;
-  averageOrderValue: number;
-  preferredCategories: string[];
-}
-```
+### React for Frontend
 
-**Response:**
-```typescript
-interface CreateUserResponse {
-  user: User;
-}
-```
+React was chosen for the frontend due to:
 
-#### PUT /api/users/:userId
+- **Component Model**: Reusable UI components
+- **Virtual DOM**: Efficient updates
+- **Ecosystem**: Rich ecosystem of libraries and tools
+- **Community**: Large community and support
+- **TypeScript**: Excellent TypeScript support
 
-**Request:**
-```typescript
-interface UpdateUserRequest {
-  name?: string;
-  email?: string;
-  lastOrderDate?: string;
-  orderCount?: number;
-  averageOrderValue?: number;
-  preferredCategories?: string[];
-}
-```
+### Express.js for API
 
-**Response:**
-```typescript
-interface UpdateUserResponse {
-  user: User;
-}
-```
+Express.js was chosen for the API due to:
 
-#### DELETE /api/users/:userId
+- **Simplicity**: Lightweight and flexible
+- **Middleware**: Rich middleware ecosystem
+- **Performance**: Good performance characteristics
+- **TypeScript**: Good TypeScript support
+- **Lambda**: Easy to deploy to Lambda
 
-**Response:**
-```typescript
-// Empty response with 204 status code
-```
+### CDK for Infrastructure
 
-### Email API
+CDK was chosen for infrastructure due to:
 
-#### GET /api/emails
+- **TypeScript**: Same language as application code
+- **Abstraction**: Higher-level abstractions than CloudFormation
+- **Constructs**: Reusable infrastructure components
+- **Testing**: Infrastructure can be tested
+- **Integration**: Good integration with AWS services
 
-**Query Parameters:**
-```typescript
-interface GetEmailsQuery {
-  userId?: string;
-  limit?: number;
-  offset?: number;
-}
-```
+## Technical Risks
 
-**Response:**
-```typescript
-interface GetEmailsResponse {
-  emails: Email[];
-  total: number;
-}
-```
+### DynamoDB Streams
 
-#### GET /api/emails/:emailId
+DynamoDB Streams have the following risks:
 
-**Response:**
-```typescript
-interface GetEmailResponse {
-  email: Email;
-}
-```
+- **Ordering**: Events may not be delivered in order
+- **Duplicates**: Events may be delivered more than once
+- **Latency**: Events may be delayed
+- **Retention**: Events are only retained for 24 hours
 
-### Health Check API
+Mitigation: Design for idempotency and out-of-order processing.
 
-#### GET /api/health
+### Lambda Cold Starts
 
-**Response:**
-```typescript
-interface HealthCheckResponse {
-  status: 'healthy' | 'unhealthy';
-  version: string;
-  timestamp: string;
-  dependencies: {
-    dynamoDB: 'connected' | 'error';
-    sns?: 'connected' | 'error';
-    sqs?: 'connected' | 'error';
-    openRouter?: 'connected' | 'error';
-  };
-  details?: Record<string, any>;
-}
-```
+Lambda functions have cold start latency, which can impact performance:
 
-## Data Models
+- **TypeScript**: TypeScript Lambda functions have longer cold starts
+- **Dependencies**: More dependencies increase cold start time
+- **VPC**: VPC Lambda functions have longer cold starts
 
-### User Model
+Mitigation: Optimize Lambda functions for fast startup and use provisioned concurrency for critical functions.
 
-```typescript
-export interface User {
-  userId: string;
-  email: string;
-  name: string;
-  lastOrderDate: string;
-  orderCount: number;
-  averageOrderValue: number;
-  preferredCategories: string[];
-  engagementScore: number;
-  lastEmailDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-```
+### OpenAI API
 
-### Email Model
+The OpenAI API has the following risks:
 
-```typescript
-export interface Email {
-  emailId: string;
-  userId: string;
-  subject: string;
-  content: string;
-  generatedAt: string;
-  engagementScoreAtTime: number;
-  status: 'generated' | 'would_send';
-  createdAt: string;
-}
-```
+- **Availability**: The API may be unavailable
+- **Rate Limits**: The API has rate limits
+- **Cost**: The API has usage-based pricing
+- **Content**: The API may generate inappropriate content
 
-### Event Model
+Mitigation: Implement retry logic, rate limiting, and content filtering.
 
-```typescript
-export enum EventType {
-  USER_CREATED = 'USER_CREATED',
-  USER_UPDATED = 'USER_UPDATED',
-  USER_DELETED = 'USER_DELETED',
-  USER_SCORED = 'USER_SCORED',
-  EMAIL_GENERATED = 'EMAIL_GENERATED'
-}
+### Email Deliverability
 
-export interface Event<T = any> {
-  type: EventType;
-  payload: T;
-  timestamp: string;
-}
+Email delivery has the following risks:
+
+- **Spam Filters**: Emails may be marked as spam
+- **Bounces**: Emails may bounce
+- **Reputation**: Sender reputation may be affected
+- **Compliance**: Email must comply with regulations
+
+Mitigation: Follow email best practices, monitor bounces and complaints, and ensure compliance with regulations.
+
+## Technical Monitoring
+
+### CloudWatch Logs
+
+All Lambda functions log to CloudWatch Logs, providing:
+
+- **Error Tracking**: Errors are logged with context
+- **Performance Monitoring**: Execution time and memory usage
+- **Request Tracing**: Request IDs for tracing
+- **Custom Metrics**: Custom metrics for business logic
+
+### CloudWatch Metrics
+
+CloudWatch Metrics are used for monitoring:
+
+- **Lambda Invocations**: Number of Lambda invocations
+- **Lambda Errors**: Number of Lambda errors
+- **Lambda Duration**: Lambda execution time
+- **DynamoDB Throughput**: DynamoDB read and write throughput
+- **SQS Queue Length**: SQS queue length
+
+### Health Check Endpoint
+
+The backend API provides a health check endpoint that checks:
+
+- **API Health**: API is responding
+- **DynamoDB Health**: DynamoDB is accessible
+- **SNS Health**: SNS is accessible
+- **SQS Health**: SQS is accessible
+
+## Technical Documentation
+
+### Code Documentation
+
+Code is documented with:
+
+- **Comments**: Inline comments for complex logic
+- **JSDoc/TSDoc**: Function and class documentation
+- **README**: Package-level documentation
+- **Architecture**: System-level documentation
+
+### API Documentation
+
+The API is documented with:
+
+- **OpenAPI**: API specification
+- **Endpoint Documentation**: Endpoint descriptions
+- **Request/Response Examples**: Example requests and responses
+- **Error Codes**: Error code documentation
+
+### Infrastructure Documentation
+
+Infrastructure is documented with:
+
+- **CDK Code**: Self-documenting infrastructure code
+- **Architecture Diagram**: Visual representation of infrastructure
+- **Resource Documentation**: Documentation of AWS resources
+- **Deployment Guide**: Step-by-step deployment instructions

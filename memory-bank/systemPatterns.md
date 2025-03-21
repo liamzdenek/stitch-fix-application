@@ -1,159 +1,238 @@
-# System Patterns: Stitch Fix Client Engagement Acceleration System
+# Stitch Fix Client Engagement Acceleration System - System Patterns
 
-## System Architecture
+## Architecture Patterns
 
-The Client Engagement Acceleration System follows an event-driven architecture with the following key components:
+### Event-Driven Architecture
 
-```mermaid
-graph TD
-    A[React Frontend] -->|API Calls| B[API Gateway]
-    B -->|Routes to| C[Backend Lambda]
-    C -->|CRUD Operations| D[DynamoDB]
-    D -->|DynamoDB Stream| E[Stream Processor Lambda]
-    E -->|Publishes to| F[SNS Topic]
-    F -->|Delivers to| G[SQS Queue]
-    G -->|Triggers| H[Email Processor Lambda]
-    H -->|Reads/Writes| D
-    H -->|Calls| I[OpenRouter API]
-```
+The system follows an event-driven architecture pattern, where changes to user data trigger events that flow through the system. This pattern provides:
 
-### Key Components
+- **Loose Coupling**: Components communicate through events, reducing direct dependencies.
+- **Scalability**: Components can scale independently based on event volume.
+- **Resilience**: Failure in one component doesn't affect others directly.
+- **Extensibility**: New components can be added to consume events without modifying existing ones.
 
-1. **Frontend Application**: Single React application with multiple views
-   - User management interface
-   - Email dashboard interface
+The event flow is:
+1. User data changes in DynamoDB
+2. DynamoDB Stream generates an event
+3. Stream Processor Lambda processes the event
+4. Event is published to SNS topic
+5. SNS delivers the event to SQS queue
+6. Email Processor Lambda consumes the event from SQS
 
-2. **Backend Application**: Express.js application deployed as Lambda
-   - API endpoints for users and emails
-   - Database operations
+### Microservices Architecture
 
-3. **Stream Processor Lambda**: Processes DynamoDB stream events
-   - Transforms database events into domain events
-   - Publishes events to SNS for durable processing
+The system is organized as a collection of loosely coupled services, each with a specific responsibility:
 
-4. **Email Processor Lambda**: Event-driven processor deployed as Lambda
-   - Consumes events from SQS
-   - Calculates engagement scores
-   - Generates personalized emails using OpenRouter
+- **Shared Package**: Common types and utilities
+- **Stream Processor**: Processes DynamoDB streams and publishes events
+- **Email Processor**: Generates and sends personalized emails
+- **Backend API**: Provides RESTful API for managing users and emails
+- **Frontend UI**: User interface for monitoring and management
 
-5. **Data Storage**: DynamoDB tables
-   - Users table with DynamoDB Stream enabled
-   - Emails table
+This pattern provides:
+- **Modularity**: Each service can be developed, deployed, and scaled independently.
+- **Technology Diversity**: Different services can use different technologies (e.g., TypeScript vs. Go).
+- **Team Autonomy**: Different teams can own different services.
+- **Fault Isolation**: Failures are contained within service boundaries.
 
-6. **Event Bus**: SNS topic + SQS queue for durable, rate-controlled processing
+### Serverless Architecture
 
-## Key Technical Decisions
+The system leverages serverless components for compute:
 
-### 1. Event-Driven Architecture with DynamoDB Streams
+- **Lambda Functions**: For event processing and API handling
+- **DynamoDB**: For serverless database storage
+- **SNS/SQS**: For serverless messaging
+- **S3/CloudFront**: For serverless frontend hosting
 
-**Decision**: Use DynamoDB Streams to capture database changes and trigger event processing.
-
-**Rationale**:
-- Decouples the event generation from API operations
-- Ensures no events are lost if there's an issue with the backend Lambda
-- Provides a reliable source of truth for all data changes
-
-### 2. SNS-SQS Combination for Event Processing
-
-**Decision**: Use SNS to publish events and SQS to consume them.
-
-**Rationale**:
-- Provides better control over the rate at which the Processor Lambda is invoked
-- Adds durability through the SNS/SQS combination
-- Enables handling outages gracefully with message retention
-- Allows for future expansion to multiple consumers
-
-### 3. Serverless Architecture with AWS Lambda
-
-**Decision**: Implement all backend services as AWS Lambda functions.
-
-**Rationale**:
-- Scales automatically based on demand
-- Reduces operational overhead
-- Pay-per-use pricing model
-- Integrates well with other AWS services
-
-### 4. Single Frontend Application
-
-**Decision**: Consolidate all UI functionality into a single React application.
-
-**Rationale**:
-- Simplifies development and deployment for a demo project
-- Provides a cohesive user experience
-- Reduces complexity in routing and state management
-
-### 5. Algorithmic Approach for Engagement Scoring
-
-**Decision**: Use a simple algorithmic approach for engagement scoring rather than machine learning.
-
-**Rationale**:
-- Faster to implement for a 1-day demo
-- More explainable and transparent
-- Sufficient for demonstrating the concept
-- Can be extended to ML-based approaches in the future
-
-### 6. OpenRouter for LLM Integration
-
-**Decision**: Use OpenRouter for generating personalized emails.
-
-**Rationale**:
-- Provides access to multiple LLM models through a single API
-- Simplifies integration compared to direct model hosting
-- Offers flexibility in model selection
+This pattern provides:
+- **Automatic Scaling**: Resources scale automatically with demand.
+- **Pay-per-Use**: Costs are directly tied to usage.
+- **Reduced Operational Overhead**: No servers to manage.
+- **High Availability**: Built-in redundancy and fault tolerance.
 
 ## Design Patterns
 
-### 1. Repository Pattern
+### Repository Pattern
 
-Used in data access layers to abstract database operations and provide a clean interface for working with domain objects.
+The system uses the repository pattern to abstract data access:
 
-### 2. Event Sourcing
+- **Data Models**: Defined in the shared package
+- **Data Access**: Encapsulated in repository functions
+- **Business Logic**: Separated from data access concerns
 
-The system captures all changes to application state as a sequence of events, which can be used to reconstruct the current state or analyze historical changes.
+This pattern provides:
+- **Separation of Concerns**: Business logic is separated from data access.
+- **Testability**: Data access can be mocked for testing.
+- **Flexibility**: The underlying data store can be changed without affecting business logic.
 
-### 3. CQRS (Command Query Responsibility Segregation)
+### Command Query Responsibility Segregation (CQRS)
 
-Separates read and write operations, with writes flowing through the event system and reads coming directly from DynamoDB.
+The system separates read and write operations:
 
-### 4. Circuit Breaker
+- **Commands**: Operations that change state (create/update users, generate emails)
+- **Queries**: Operations that read state (get users, get emails)
 
-Implemented for external service calls (like OpenRouter) to prevent cascading failures and provide graceful degradation.
+This pattern provides:
+- **Scalability**: Read and write operations can be scaled independently.
+- **Performance**: Read models can be optimized for query performance.
+- **Flexibility**: Different data models can be used for reads and writes.
 
-### 5. Dependency Injection
+### Factory Pattern
 
-Used throughout the codebase to improve testability and maintainability.
+The system uses factory functions to create complex objects:
 
-## Component Relationships
+- **Event Creation**: Factory function for creating events
+- **Email Generation**: Factory function for generating emails
+- **API Response Creation**: Factory function for creating API responses
 
-### Frontend-Backend Interaction
+This pattern provides:
+- **Encapsulation**: Object creation logic is encapsulated.
+- **Consistency**: Objects are created consistently.
+- **Testability**: Object creation can be mocked for testing.
 
-The React frontend communicates with the backend through RESTful API calls. The API Gateway routes these requests to the Backend Lambda, which performs the necessary operations and returns responses.
+### Observer Pattern
 
-### Event Flow
+The system uses the observer pattern for event handling:
 
-1. User updates trigger DynamoDB Stream events
-2. Stream Processor Lambda processes these events and publishes to SNS
-3. SNS delivers events to SQS
-4. Email Processor Lambda consumes events from SQS
-5. Email Processor Lambda updates user engagement scores and generates emails as needed
+- **Publishers**: Components that generate events (Stream Processor)
+- **Subscribers**: Components that consume events (Email Processor)
+- **Event Bus**: SNS/SQS for event delivery
 
-### Data Flow
+This pattern provides:
+- **Loose Coupling**: Publishers don't know about subscribers.
+- **Scalability**: Multiple subscribers can consume the same events.
+- **Extensibility**: New subscribers can be added without modifying publishers.
 
-1. User data is stored in DynamoDB
-2. Engagement scores are calculated based on user data
-3. Generated emails are stored in DynamoDB
-4. Frontend retrieves and displays user and email data
+## Code Patterns
 
-## Scalability Considerations
+### Dependency Injection
 
-1. **DynamoDB Auto-scaling**: Tables are configured with auto-scaling to handle varying loads
-2. **Lambda Concurrency**: Lambda functions scale automatically based on event volume
-3. **SQS Throttling**: SQS provides a buffer to control the rate of event processing
-4. **CloudFront CDN**: Frontend assets are distributed through CloudFront for global scalability
+The system uses dependency injection for managing dependencies:
 
-## Security Considerations
+- **Service Dependencies**: Injected into components that need them
+- **Configuration**: Injected via environment variables
+- **External Clients**: Injected into services that use them
 
-1. **IAM Roles**: Each Lambda function has a specific IAM role with least privilege permissions
-2. **API Gateway Authorization**: API endpoints can be secured with API keys or JWT authentication
-3. **Environment Variables**: Sensitive configuration is stored in environment variables
-4. **CORS Configuration**: API Gateway is configured with appropriate CORS headers
+This pattern provides:
+- **Testability**: Dependencies can be mocked for testing.
+- **Flexibility**: Dependencies can be changed without modifying consumers.
+- **Separation of Concerns**: Components focus on their core responsibilities.
+
+### Functional Programming
+
+The system uses functional programming principles where appropriate:
+
+- **Pure Functions**: Functions without side effects
+- **Immutability**: Data is treated as immutable
+- **Higher-Order Functions**: Functions that take or return functions
+
+This pattern provides:
+- **Predictability**: Pure functions are easier to reason about.
+- **Testability**: Pure functions are easier to test.
+- **Concurrency**: Immutable data is safer for concurrent operations.
+
+### Error Handling
+
+The system follows consistent error handling patterns:
+
+- **Error Types**: Well-defined error types
+- **Error Propagation**: Errors are propagated up the call stack
+- **Error Logging**: Errors are logged with context
+- **Error Responses**: Consistent error responses from APIs
+
+This pattern provides:
+- **Reliability**: Errors are handled consistently.
+- **Observability**: Errors are logged with context for debugging.
+- **User Experience**: Users receive consistent error messages.
+
+## Data Patterns
+
+### Event Sourcing
+
+The system uses event sourcing for tracking changes:
+
+- **Events**: Represent changes to the system state
+- **Event Store**: SNS/SQS for event delivery
+- **Event Consumers**: Process events to update state
+
+This pattern provides:
+- **Audit Trail**: All changes are recorded as events.
+- **Temporal Queries**: State can be reconstructed at any point in time.
+- **Event Replay**: Events can be replayed to rebuild state.
+
+### Materialized View
+
+The system uses materialized views for efficient queries:
+
+- **DynamoDB Tables**: Store the current state
+- **GSIs**: Provide efficient access patterns
+- **Event Processors**: Update materialized views based on events
+
+This pattern provides:
+- **Query Performance**: Queries are performed against pre-computed views.
+- **Scalability**: Views can be optimized for specific query patterns.
+- **Flexibility**: Different views can be created for different query needs.
+
+## Integration Patterns
+
+### Message Queue
+
+The system uses message queues for reliable communication:
+
+- **SNS**: For publishing events
+- **SQS**: For buffering events
+- **Lambda**: For consuming events
+
+This pattern provides:
+- **Decoupling**: Publishers and consumers are decoupled.
+- **Buffering**: Messages are buffered during traffic spikes.
+- **Reliability**: Messages are delivered at least once.
+- **Scalability**: Multiple consumers can process messages in parallel.
+
+### API Gateway
+
+The system uses API Gateway for API management:
+
+- **RESTful API**: For managing users and emails
+- **Authentication**: For securing API access
+- **Rate Limiting**: For protecting against abuse
+
+This pattern provides:
+- **Security**: APIs are secured with authentication and authorization.
+- **Monitoring**: API usage is monitored and logged.
+- **Rate Limiting**: APIs are protected against abuse.
+- **Documentation**: APIs are documented with OpenAPI.
+
+## Deployment Patterns
+
+### Infrastructure as Code
+
+The system uses Infrastructure as Code for deployment:
+
+- **AWS CDK**: For defining AWS resources
+- **TypeScript**: For writing infrastructure code
+- **Stack**: For organizing related resources
+
+This pattern provides:
+- **Reproducibility**: Infrastructure can be recreated consistently.
+- **Version Control**: Infrastructure changes are tracked in version control.
+- **Automation**: Deployment can be automated with CI/CD.
+- **Documentation**: Infrastructure is self-documenting.
+
+### Blue-Green Deployment
+
+The system supports blue-green deployment for zero-downtime updates:
+
+- **CloudFront**: For routing traffic between environments
+- **S3**: For hosting multiple versions of the frontend
+- **Lambda**: For versioning backend functions
+
+This pattern provides:
+- **Zero Downtime**: Updates can be deployed without downtime.
+- **Rollback**: Failed deployments can be rolled back quickly.
+- **Testing**: New versions can be tested in production-like environments.
+- **Gradual Rollout**: Traffic can be shifted gradually to new versions.
+
+## Conclusion
+
+These system patterns form the foundation of the Stitch Fix Client Engagement Acceleration System. They provide a robust, scalable, and maintainable architecture that can evolve over time to meet changing business needs.

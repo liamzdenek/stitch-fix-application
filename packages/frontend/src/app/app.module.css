@@ -1,0 +1,250 @@
+/* App container */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  color: #333;
+}
+
+/* Header */
+.header {
+  background-color: #0073b1;
+  color: white;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+/* Navigation */
+.nav {
+  display: flex;
+  margin-top: 1rem;
+}
+
+.navButton {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem 1rem;
+  margin-right: 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.navButton:hover {
+  color: white;
+}
+
+.navButton.active {
+  color: white;
+  border-bottom: 2px solid white;
+}
+
+/* Main content */
+.main {
+  flex: 1;
+  padding: 2rem;
+  background-color: #f5f5f5;
+}
+
+/* Users tab */
+.usersTab {
+  display: flex;
+  gap: 2rem;
+}
+
+.usersList {
+  flex: 1;
+}
+
+.userDetail {
+  flex: 1;
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Emails tab */
+.emailsTab {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.table th {
+  background-color: #f9f9f9;
+  font-weight: 600;
+}
+
+.table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+.selectedRow {
+  background-color: #e6f7ff !important;
+}
+
+/* Score visualization */
+.scoreContainer {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  background-color: #eee;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.scoreBar {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.scoreContainer span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Forms */
+.newUserForm {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: 1.5rem;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.formGroup input,
+.formGroup textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.submitButton {
+  background-color: #0073b1;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.submitButton:hover {
+  background-color: #005d8f;
+}
+
+/* Buttons */
+.viewButton {
+  background-color: #0073b1;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.viewButton:hover {
+  background-color: #005d8f;
+}
+
+/* User info */
+.userInfo {
+  margin-bottom: 1.5rem;
+}
+
+.userInfo h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #0073b1;
+}
+
+.userInfo p {
+  margin: 0.5rem 0;
+}
+
+/* User emails */
+.userEmails h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #0073b1;
+}
+
+/* Loading and error states */
+.loading,
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 1.2rem;
+}
+
+.error {
+  color: #d32f2f;
+}
+
+/* Footer */
+.footer {
+  background-color: #333;
+  color: white;
+  padding: 1rem 2rem;
+  text-align: center;
+}
+
+.footer p {
+  margin: 0;
+  font-size: 0.9rem;
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@stitch-fix/stream-processor",
+  "version": "0.0.1",
+  "description": "Stream processor for the Stitch Fix Client Engagement Acceleration System",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.772.0",
+    "@aws-sdk/client-sns": "^3.772.0",
+    "@stitch-fix/shared": "*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.147",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.8.2"
+  }
+}

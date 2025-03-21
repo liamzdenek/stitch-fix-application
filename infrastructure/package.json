@@ -1,0 +1,16 @@
+{
+  "name": "infrastructure",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.772.0",
+    "@aws-sdk/client-sns": "^3.772.0",
+    "@aws-sdk/client-sqs": "^3.772.0",
+    "aws-cdk-lib": "^2.185.0",
+    "constructs": "^10.4.2",
+    "tslib": "^2.3.0"
+  }
+}

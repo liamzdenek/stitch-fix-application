@@ -1,694 +1,212 @@
 # Stitch Fix Client Engagement Acceleration System - Architecture
 
-## Project Overview
+## Overview
 
-This 1-day demo project addresses Stitch Fix's key business risk: "We may be unable to retain clients or maintain a high level of engagement with our clients." The system identifies at-risk customers and generates personalized re-engagement emails using LLM technology.
+The Stitch Fix Client Engagement Acceleration System is designed to address a key risk identified in Stitch Fix's annual SEC report: client retention and engagement. The system monitors client engagement, identifies clients at risk of disengagement, and automatically generates personalized emails to re-engage them.
 
-## System Architecture
+## Business Problem
 
-The system follows an event-driven architecture with a simplified structure for demo purposes:
+From Stitch Fix's SEC report, several key risks were identified:
 
-```mermaid
-graph TD
-    A[React Frontend] -->|API Calls| B[API Gateway]
-    B -->|Routes to| C[Backend Lambda]
-    C -->|CRUD Operations| D[DynamoDB]
-    D -->|DynamoDB Stream| E[Stream Processor Lambda]
-    E -->|Publishes to| F[SNS Topic]
-    F -->|Delivers to| G[SQS Queue]
-    G -->|Triggers| H[Email Processor Lambda]
-    H -->|Reads/Writes| D
-    H -->|Calls| I[OpenRouter API]
-```
+- "We may be unable to retain clients or maintain a high level of engagement with our clients and maintain or increase their spending with us, which could harm our business, financial condition, or operating results."
+- "Our growth depends on attracting new clients."
+- "We rely on paid marketing to help grow our business, but these efforts may not be successful or cost effective, and such expenses and the success of our efforts may vary from period to period."
 
-### Key Components
+This system addresses these risks by:
 
-1. **Frontend Application**: Single React application with multiple views
-   - User management interface
-   - Email dashboard interface
+1. Proactively identifying clients at risk of disengagement
+2. Automatically generating personalized re-engagement emails
+3. Tracking the effectiveness of engagement efforts
+4. Providing a dashboard for monitoring client engagement
 
-2. **Backend Application**: Single Express.js application deployed as Lambda
-   - API endpoints for users and emails
-   - Database operations
+## Architecture Principles
 
-3. **Stream Processor Lambda**: Processes DynamoDB stream events
-   - Transforms database events into domain events
-   - Publishes events to SNS for durable processing
+The system follows these key principles:
 
-4. **Email Processor Lambda**: Event-driven processor deployed as Lambda
-   - Consumes events from SQS
-   - Calculates engagement scores
-   - Generates personalized emails using OpenRouter
+1. **Event-Driven Architecture**: Changes to client data trigger events that flow through the system
+2. **12-Factor App Design**: Configuration via environment variables, stateless processes, etc.
+3. **Serverless First**: Using AWS Lambda for compute to minimize operational overhead
+4. **Durability**: Using SNS/SQS for reliable message delivery
+5. **Scalability**: Components scale independently based on load
+6. **Observability**: Comprehensive logging and monitoring
 
-5. **Data Storage**: DynamoDB tables
-   - Users table with DynamoDB Stream enabled
-   - Emails table
+## System Components
 
-6. **Event Bus**: SNS topic + SQS queue for durable, rate-controlled processing
+### Data Storage
 
-## 12-Factor App Implementation
+**DynamoDB Tables**:
+- **Users Table**: Stores user information with stream enabled
+  - Partition Key: `userId`
+  - Attributes: email, name, lastOrderDate, orderCount, averageOrderValue, preferredCategories, engagementScore, lastEmailDate, createdAt, updatedAt
+  - Stream: Enabled with NEW_AND_OLD_IMAGES
 
-1. **Codebase**: Single monorepo in Git
-2. **Dependencies**: Explicitly declared and isolated
-3. **Config**: Stored in environment variables
-4. **Backing Services**: Treated as attached resources (DynamoDB, SNS, SQS)
-5. **Build, Release, Run**: Strict separation between stages
-6. **Processes**: Stateless processes with data in backing services
-7. **Port Binding**: Services export via port binding
-8. **Concurrency**: Scale via the process model (Lambda auto-scaling)
-9. **Disposability**: Fast startup and graceful shutdown
-10. **Dev/Prod Parity**: Same AWS services in all environments
-11. **Logs**: Treated as event streams (CloudWatch)
-12. **Admin Processes**: Run as one-off processes via CDK
+- **Emails Table**: Stores generated emails
+  - Partition Key: `emailId`
+  - Attributes: userId, subject, content, generatedAt, engagementScoreAtTime, status, createdAt
+  - GSI: userIdIndex (for querying emails by user)
 
-## Project Structure
+### Processing Components
 
-```
-stitch-fix-application/
-├── packages/
-│   ├── shared/                   # Shared types and utilities
-│   │   ├── src/
-│   │   │   ├── types/            # Shared TypeScript interfaces
-│   │   │   ├── schemas/          # Zod schemas
-│   │   │   └── utils/            # Shared utility functions
-│   ├── frontend/                 # React application
-│   │   ├── src/
-│   │   │   ├── components/       # React components
-│   │   │   ├── pages/            # Page components
-│   │   │   ├── services/         # API services
-│   │   │   └── styles/           # CSS modules
-│   ├── backend/                  # Express API server
-│   │   ├── src/
-│   │   │   ├── routes/           # API routes
-│   │   │   ├── controllers/      # Request handlers
-│   │   │   ├── services/         # Business logic
-│   │   │   └── repositories/     # Data access
-│   ├── stream-processor/         # DynamoDB Stream processor
-│   │   ├── src/
-│   │   │   ├── handlers/         # Stream event handlers
-│   │   │   └── publishers/       # SNS publishers
-│   ├── email-processor/          # Email generation processor
-│   │   ├── src/
-│   │   │   ├── handlers/         # SQS event handlers
-│   │   │   ├── scoring/          # Scoring algorithm
-│   │   │   └── email/            # Email generation
-├── infrastructure/               # CDK infrastructure code
-│   ├── src/
-│   │   ├── stacks/               # CDK stacks
-│   │   └── app.ts                # CDK app entry point
-├── nx.json                       # Nx configuration
-└── package.json                  # Root package.json
-```
+**Stream Processor Lambda (TypeScript)**:
+- Triggered by DynamoDB Streams from the Users table
+- Processes INSERT and MODIFY events
+- Publishes events to SNS topic
+- Environment Variables:
+  - SNS_TOPIC_ARN: ARN of the SNS topic
+  - USERS_TABLE_NAME: Name of the Users table
+  - ORDERS_TABLE_NAME: Name of the Orders table
 
-## Data Models
+**Email Processor Lambda (Go)**:
+- Triggered by messages from SQS queue
+- Calculates engagement scores for users
+- Generates personalized emails using OpenAI
+- Sends emails via SES
+- Updates user and email records in DynamoDB
+- Environment Variables:
+  - USERS_TABLE_NAME: Name of the Users table
+  - EMAILS_TABLE_NAME: Name of the Emails table
+  - OPENAI_API_KEY: API key for OpenAI
 
-### User Model
+### Messaging Components
 
-```typescript
-// Shared type definition
-export interface User {
-  userId: string;
-  email: string;
-  name: string;
-  lastOrderDate: string;
-  orderCount: number;
-  averageOrderValue: number;
-  preferredCategories: string[];
-  engagementScore: number;
-  lastEmailDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+**SNS Topic**:
+- Receives events from Stream Processor
+- Delivers events to SQS queue
 
-// Zod schema for validation
-export const UserSchema = z.object({
-  userId: z.string().uuid(),
-  email: z.string().email(),
-  name: z.string().min(1),
-  lastOrderDate: z.string().datetime(),
-  orderCount: z.number().int().nonnegative(),
-  averageOrderValue: z.number().nonnegative(),
-  preferredCategories: z.array(z.string()),
-  engagementScore: z.number().min(0).max(100).optional(),
-  lastEmailDate: z.string().datetime().nullable(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime()
-});
-```
+**SQS Queue**:
+- Buffers events for Email Processor
+- Provides durability and rate control
+- Visibility Timeout: 300 seconds
+- Retention Period: 14 days
 
-### Email Model
+### API and UI Components
 
-```typescript
-// Shared type definition
-export interface Email {
-  emailId: string;
-  userId: string;
-  subject: string;
-  content: string;
-  generatedAt: string;
-  engagementScoreAtTime: number;
-  status: 'generated' | 'would_send';
-  createdAt: string;
-}
+**Backend API (Express.js)**:
+- RESTful API for managing users and emails
+- Endpoints:
+  - GET /health: Health check
+  - GET /api/users: List all users
+  - GET /api/users/:userId: Get user details
+  - POST /api/users: Create a new user
+  - PUT /api/users/:userId: Update a user
+  - DELETE /api/users/:userId: Delete a user
+  - GET /api/emails: List all emails
+  - GET /api/emails/:emailId: Get email details
+  - GET /api/users/:userId/emails: Get emails for a user
+  - POST /api/orders: Create a new order (simplified)
 
-// Zod schema for validation
-export const EmailSchema = z.object({
-  emailId: z.string().uuid(),
-  userId: z.string().uuid(),
-  subject: z.string().min(1),
-  content: z.string().min(1),
-  generatedAt: z.string().datetime(),
-  engagementScoreAtTime: z.number().min(0).max(100),
-  status: z.enum(['generated', 'would_send']),
-  createdAt: z.string().datetime()
-});
-```
+**Frontend UI (React)**:
+- Dashboard for monitoring user engagement
+- Interface for managing users and viewing emails
+- Features:
+  - User list with engagement scores
+  - User details view
+  - Email history view
+  - Add new user form
 
-### Event Model
+### Infrastructure Components
 
-```typescript
-// Event types
-export enum EventType {
-  USER_CREATED = 'USER_CREATED',
-  USER_UPDATED = 'USER_UPDATED',
-  USER_DELETED = 'USER_DELETED',
-  USER_SCORED = 'USER_SCORED',
-  EMAIL_GENERATED = 'EMAIL_GENERATED'
-}
+**S3 Bucket**:
+- Hosts the frontend static assets
 
-// Event interface
-export interface Event<T = any> {
-  type: EventType;
-  payload: T;
-  timestamp: string;
-}
-```
-
-## API Contracts
-
-### User API
-
-#### GET /api/users
-
-**Response:**
-```typescript
-interface GetUsersResponse {
-  users: User[];
-}
-```
-
-#### GET /api/users/:userId
-
-**Response:**
-```typescript
-interface GetUserResponse {
-  user: User;
-}
-```
-
-**Error Response:**
-```typescript
-interface ErrorResponse {
-  error: string;
-  message: string;
-  statusCode: number;
-}
-```
-
-#### POST /api/users
-
-**Request:**
-```typescript
-interface CreateUserRequest {
-  name: string;
-  email: string;
-  lastOrderDate: string;
-  orderCount: number;
-  averageOrderValue: number;
-  preferredCategories: string[];
-}
-```
-
-**Response:**
-```typescript
-interface CreateUserResponse {
-  user: User;
-}
-```
-
-#### PUT /api/users/:userId
-
-**Request:**
-```typescript
-interface UpdateUserRequest {
-  name?: string;
-  email?: string;
-  lastOrderDate?: string;
-  orderCount?: number;
-  averageOrderValue?: number;
-  preferredCategories?: string[];
-}
-```
-
-**Response:**
-```typescript
-interface UpdateUserResponse {
-  user: User;
-}
-```
-
-#### DELETE /api/users/:userId
-
-**Response:**
-```typescript
-// Empty response with 204 status code
-```
-
-### Email API
-
-#### GET /api/emails
-
-**Query Parameters:**
-```typescript
-interface GetEmailsQuery {
-  userId?: string;
-  limit?: number;
-  offset?: number;
-}
-```
-
-**Response:**
-```typescript
-interface GetEmailsResponse {
-  emails: Email[];
-  total: number;
-}
-```
-
-#### GET /api/emails/:emailId
-
-**Response:**
-```typescript
-interface GetEmailResponse {
-  email: Email;
-}
-```
-
-### Health Check API
-
-#### GET /api/health
-
-**Response:**
-```typescript
-interface HealthCheckResponse {
-  status: 'healthy' | 'unhealthy';
-  version: string;
-  timestamp: string;
-  dependencies: {
-    dynamoDB: 'connected' | 'error';
-    sns?: 'connected' | 'error';
-    sqs?: 'connected' | 'error';
-    openRouter?: 'connected' | 'error';
-  };
-  details?: Record<string, any>;
-}
-```
+**CloudFront Distribution**:
+- Serves the frontend with HTTPS
+- Caches static assets
 
 ## Event Flow
 
-### User Update Flow
+1. **User Data Change**:
+   - User data is created or updated in DynamoDB
+   - DynamoDB Stream generates an event
 
-```mermaid
-sequenceDiagram
-    participant Frontend
-    participant Backend
-    participant DynamoDB
-    participant Stream
-    participant StreamProcessor
-    participant SNS
-    participant SQS
-    participant EmailProcessor
-    participant OpenRouter
-    
-    Frontend->>Backend: PUT /api/users/:userId
-    Backend->>DynamoDB: Update User
-    Backend->>Frontend: Return updated user
-    
-    DynamoDB->>Stream: Generate stream event
-    Stream->>StreamProcessor: Trigger stream processor
-    StreamProcessor->>SNS: Publish USER_UPDATED event
-    SNS->>SQS: Deliver to queue
-    
-    SQS->>EmailProcessor: Consume USER_UPDATED event
-    EmailProcessor->>DynamoDB: Get user data
-    EmailProcessor->>EmailProcessor: Calculate engagement score
-    EmailProcessor->>DynamoDB: Update user with new score
-    
-    alt Score below threshold
-        EmailProcessor->>OpenRouter: Generate personalized email
-        OpenRouter->>EmailProcessor: Return email content
-        EmailProcessor->>DynamoDB: Store generated email
-    end
-```
+2. **Stream Processing**:
+   - Stream Processor Lambda is triggered by the DynamoDB Stream
+   - Lambda processes the event and publishes to SNS topic
 
-## DynamoDB Stream Processing
+3. **Message Delivery**:
+   - SNS delivers the event to SQS queue
+   - Message is buffered in SQS
 
-The Stream Processor Lambda transforms DynamoDB stream events into domain events:
+4. **Email Processing**:
+   - Email Processor Lambda polls SQS queue
+   - Lambda calculates engagement score for the user
+   - If score is below threshold, Lambda generates and sends email
+   - Lambda updates user and email records in DynamoDB
 
-```mermaid
-graph TD
-    A[DynamoDB Stream Event] -->|Parse| B[Extract Record]
-    B -->|Determine Event Type| C{Event Type}
-    C -->|Insert| D[USER_CREATED Event]
-    C -->|Modify| E[USER_UPDATED Event]
-    C -->|Remove| F[USER_DELETED Event]
-    D -->|Publish to SNS| G[SNS Topic]
-    E -->|Publish to SNS| G
-    F -->|Publish to SNS| G
-```
+5. **Frontend Display**:
+   - Frontend queries Backend API for user and email data
+   - Dashboard displays engagement scores and email history
 
 ## Engagement Scoring Algorithm
 
-The engagement scoring algorithm uses a simple weighted approach:
-
-1. Days since last order (higher weight)
-2. Total order count (medium weight)
-3. Average order value (medium weight)
-4. Days since last email (lower weight)
-
-```
-function calculateEngagementScore(user):
-  daysSinceLastOrder = calculateDaysSince(user.lastOrderDate)
-  orderCountFactor = min(user.orderCount / 10, 1)
-  aovFactor = min(user.averageOrderValue / 200, 1)
-  daysSinceLastEmail = calculateDaysSince(user.lastEmailDate)
-  
-  // Lower score = higher risk of disengagement
-  score = 100
-  
-  // Reduce score based on days since last order (higher impact)
-  if daysSinceLastOrder > 90:
-    score -= 40
-  else if daysSinceLastOrder > 60:
-    score -= 30
-  else if daysSinceLastOrder > 30:
-    score -= 15
-  
-  // Increase score based on order history
-  score += orderCountFactor * 15
-  score += aovFactor * 10
-  
-  // Adjust based on email recency
-  if daysSinceLastEmail < 7:
-    score -= 10  // Don't email too frequently
-  
-  return max(0, min(100, score))
-```
-
-## Email Generation Strategy
-
-For users with an engagement score below a threshold (e.g., 50), the system generates a personalized email using OpenRouter. The prompt includes:
-
-1. User's name
-2. Order history summary
-3. Preferred categories
-4. Engagement score
-5. Days since last order
-
-The LLM generates a personalized email that:
-- Acknowledges previous purchases
-- Suggests new items based on preferences
-- Includes a personalized note about why they might enjoy coming back to Stitch Fix
-
-## AWS Infrastructure
-
-### DynamoDB Tables
-
-1. **Users Table**
-   - Partition Key: `userId`
-   - GSI: `engagementScore-index` (for querying at-risk users)
-   - Stream: Enabled with NEW_AND_OLD_IMAGES
-
-2. **Emails Table**
-   - Partition Key: `emailId`
-   - GSI: `userId-generatedAt-index` (for querying user's emails)
-
-### Lambda Functions
-
-1. **Backend Lambda**
-   - Handles HTTP requests via API Gateway
-   - Performs CRUD operations on DynamoDB
-
-2. **Stream Processor Lambda**
-   - Triggered by DynamoDB Stream events
-   - Transforms database events into domain events
-   - Publishes to SNS topic
-
-3. **Email Processor Lambda**
-   - Triggered by SQS events
-   - Calculates engagement scores
-   - Generates emails using OpenRouter
-   - Updates DynamoDB
-
-### SNS Topic
-
-1. **User Events Topic**
-   - Receives events from Stream Processor Lambda
-   - Delivers events to SQS queue
-
-### SQS Queue
-
-1. **User Events Queue**
-   - Subscribes to SNS topic
-   - Triggers Email Processor Lambda
-   - Provides durability and rate control
-
-### S3 Bucket
-
-1. **Frontend Assets Bucket**
-   - Hosts React application
-   - CloudFront distribution for CDN
-
-## Environment Variables
-
-### Shared Environment Variables
-- `NODE_ENV`: Runtime environment (`development`, `production`)
-- `LOG_LEVEL`: Logging level (`debug`, `info`, `warn`, `error`)
-
-### Frontend Environment Variables
-- `REACT_APP_API_URL`: URL of the API Gateway
-- `REACT_APP_REGION`: AWS region
-
-### Backend Lambda Environment Variables
-- `USERS_TABLE_NAME`: Name of the DynamoDB users table
-- `EMAILS_TABLE_NAME`: Name of the DynamoDB emails table
-- `AWS_REGION`: AWS region
-- `CORS_ORIGIN`: Allowed CORS origin
-
-### Stream Processor Lambda Environment Variables
-- `SNS_TOPIC_ARN`: ARN of the SNS topic
-- `AWS_REGION`: AWS region
-
-### Email Processor Lambda Environment Variables
-- `USERS_TABLE_NAME`: Name of the DynamoDB users table
-- `EMAILS_TABLE_NAME`: Name of the DynamoDB emails table
-- `OPENROUTER_API_KEY`: API key for OpenRouter
-- `ENGAGEMENT_THRESHOLD`: Threshold for generating emails (default: 50)
-- `AWS_REGION`: AWS region
-
-## Deployment Strategy
-
-### Infrastructure Deployment
-
-The infrastructure is deployed using AWS CDK:
-
-```mermaid
-graph TD
-    A[CDK Deploy] --> B[CloudFormation Stack]
-    B --> C[DynamoDB Tables]
-    B --> D[SNS Topic]
-    B --> E[SQS Queue]
-    B --> F[Lambda Functions]
-    B --> G[API Gateway]
-    B --> H[S3 Bucket]
-    B --> I[CloudFront Distribution]
-```
-
-1. **Build Process**
-   - Build shared package: `nx run packages/shared:build`
-   - Build backend: `nx run packages/backend:build`
-   - Build stream processor: `nx run packages/stream-processor:build`
-   - Build email processor: `nx run packages/email-processor:build`
-   - Build frontend: `nx run packages/frontend:build`
-
-2. **CDK Deployment**
-   - Deploy infrastructure: `nx run infrastructure:deploy`
-
-### CDK Stack Structure
-
-```typescript
-// Main stack structure
-const stack = new cdk.Stack(app, 'ClientEngagementStack');
-
-// DynamoDB tables
-const usersTable = new dynamodb.Table(stack, 'UsersTable', {
-  partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
-  stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-  // other properties...
-});
-
-const emailsTable = new dynamodb.Table(stack, 'EmailsTable', {
-  // properties...
-});
-
-// SNS topic
-const userEventsTopic = new sns.Topic(stack, 'UserEventsTopic');
-
-// SQS queue
-const userEventsQueue = new sqs.Queue(stack, 'UserEventsQueue');
-
-// Subscribe queue to topic
-userEventsTopic.addSubscription(new snsSubscriptions.SqsSubscription(userEventsQueue));
-
-// Lambda functions
-const backendLambda = new nodejs.NodejsFunction(stack, 'BackendLambda', {
-  entry: '../packages/backend/dist/index.js',
-  environment: {
-    USERS_TABLE_NAME: usersTable.tableName,
-    EMAILS_TABLE_NAME: emailsTable.tableName,
-    AWS_REGION: stack.region,
-    CORS_ORIGIN: '*'
-  }
-});
-
-const streamProcessorLambda = new nodejs.NodejsFunction(stack, 'StreamProcessorLambda', {
-  entry: '../packages/stream-processor/dist/index.js',
-  environment: {
-    SNS_TOPIC_ARN: userEventsTopic.topicArn,
-    AWS_REGION: stack.region
-  }
-});
-
-const emailProcessorLambda = new nodejs.NodejsFunction(stack, 'EmailProcessorLambda', {
-  entry: '../packages/email-processor/dist/index.js',
-  environment: {
-    USERS_TABLE_NAME: usersTable.tableName,
-    EMAILS_TABLE_NAME: emailsTable.tableName,
-    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || 'placeholder',
-    ENGAGEMENT_THRESHOLD: '50',
-    AWS_REGION: stack.region
-  }
-});
-
-// Event source mappings
-streamProcessorLambda.addEventSource(new lambda.DynamoEventSource(usersTable, {
-  startingPosition: lambda.StartingPosition.TRIM_HORIZON,
-  batchSize: 10,
-  retryAttempts: 3
-}));
-
-emailProcessorLambda.addEventSource(new lambda.SqsEventSource(userEventsQueue, {
-  batchSize: 10
-}));
-
-// Permissions
-usersTable.grantReadWriteData(backendLambda);
-emailsTable.grantReadWriteData(backendLambda);
-userEventsTopic.grantPublish(streamProcessorLambda);
-usersTable.grantReadWriteData(emailProcessorLambda);
-emailsTable.grantReadWriteData(emailProcessorLambda);
-
-// API Gateway
-const api = new apigateway.RestApi(stack, 'ClientEngagementApi', {
-  // properties...
-});
-
-// S3 and CloudFront for frontend
-const frontendBucket = new s3.Bucket(stack, 'FrontendBucket', {
-  // properties...
-});
-
-const distribution = new cloudfront.Distribution(stack, 'FrontendDistribution', {
-  // properties...
-});
-```
-
-### Deployment Commands
-
-The deployment process is automated using Nx commands:
-
-```bash
-# Build all packages
-nx run-many --target=build --all
-
-# Deploy infrastructure
-nx run infrastructure:deploy
-
-# Deploy frontend to S3
-nx run packages/frontend:deploy
-```
-
-## Development Workflow
-
-1. **Setup Environment**
-   - Clone repository
-   - Install dependencies with `npm install`
-   - Configure AWS credentials
-
-2. **Development**
-   - Build shared package: `nx run packages/shared:build`
-   - Deploy backend, stream processor, and email processor to AWS for testing
-   - Start frontend locally: `nx run packages/frontend:serve`
-
-3. **Testing**
-   - Create test users through the UI
-   - Update user data to trigger the DynamoDB Stream
-   - View generated emails in the dashboard
-
-## Demo Flow
-
-1. **Introduction**
-   - Explain the business problem (client engagement at Stitch Fix)
-   - Describe the solution architecture
-
-2. **User Management Demo**
-   - Create sample users
-   - Update user data to simulate different engagement scenarios
-
-3. **Email Generation Demo**
-   - Show how the system identifies at-risk users
-   - Display generated personalized emails
-   - Explain the personalization strategy
-
-4. **Technical Deep Dive**
-   - Explain the event-driven architecture with DynamoDB Streams
-   - Discuss the engagement scoring algorithm
-   - Show how the system scales and handles failures
-
-5. **Business Impact**
-   - Discuss potential ROI
-   - Explain how this addresses Stitch Fix's key risk
-
-## Implementation Plan
-
-### Day 1 Timeline (8 hours)
-
-#### Hour 1-2: Project Setup and Infrastructure
-- Initialize Nx workspace
-- Set up project structure
-- Create CDK infrastructure
-
-#### Hour 3-4: Backend and Stream Processor Implementation
-- Implement shared types and schemas
-- Create backend API endpoints
-- Implement stream processor for DynamoDB events
-
-#### Hour 5-6: Email Processor Implementation
-- Implement engagement scoring algorithm
-- Set up OpenRouter integration
-- Implement email generation
-
-#### Hour 7-8: Frontend and Testing
-- Implement React frontend
-- Deploy and test end-to-end flow
-- Prepare demo script
+The engagement score is calculated based on:
+
+- **Days since last order** (higher impact):
+  - > 90 days: -40 points
+  - > 60 days: -30 points
+  - > 30 days: -15 points
+
+- **Order count** (positive impact):
+  - +15 points * (orderCount / 10), max 15 points
+
+- **Average order value** (positive impact):
+  - +10 points * (averageOrderValue / 200), max 10 points
+
+- **Days since last email** (to avoid sending too many emails):
+  - < 7 days: -10 points
+
+The score starts at 100 and is adjusted based on these factors. Lower scores indicate higher risk of disengagement, with a threshold of 50 triggering re-engagement emails.
+
+## Email Generation
+
+Emails are generated using OpenAI's GPT model with a prompt that includes:
+- User's name
+- Last order date
+- Number of orders
+- Average order value
+- Preferred categories
+
+The prompt instructs the model to generate a personalized email that:
+1. Is friendly and personalized
+2. Mentions the user's previous order history
+3. Suggests new items based on their preferred categories
+4. Includes a clear call to action to visit the Stitch Fix website
+5. Includes a subject line
+
+## Deployment
+
+The system is deployed using AWS CDK, which creates all the necessary AWS resources:
+- DynamoDB tables
+- Lambda functions
+- SNS topic
+- SQS queue
+- S3 bucket
+- CloudFront distribution
+- IAM roles and policies
+
+## Monitoring and Observability
+
+- Lambda functions log to CloudWatch Logs
+- Health check endpoint for the Backend API
+- Frontend dashboard for monitoring engagement metrics
+
+## Security Considerations
+
+- IAM roles with least privilege
+- No public access to DynamoDB tables
+- HTTPS for all API requests
+- API keys stored in environment variables
+
+## Scalability
+
+- DynamoDB scales automatically based on throughput
+- Lambda functions scale automatically based on event volume
+- SQS provides buffering for traffic spikes
+
+## Future Enhancements
+
+1. **A/B Testing**: Test different email templates for effectiveness
+2. **Machine Learning**: Predict churn before it happens
+3. **Multi-channel Communication**: Add SMS, push notifications, etc.
+4. **Enhanced Analytics**: More detailed engagement metrics
+5. **Personalization Engine**: More sophisticated personalization based on user behavior
